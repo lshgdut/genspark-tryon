@@ -89,6 +89,10 @@ function DesktopNav() {
         <NavItem href="#" label="Analytics">
           <LineChart className="h-5 w-5" />
         </NavItem>
+
+        <NavItem href="/upload-demo" label="文件上传">
+          <Package2 className="h-5 w-5" />
+        </NavItem>
       </nav>
       <nav className="mt-auto flex flex-col items-center gap-4 px-2 sm:py-5">
         <Tooltip>
@@ -160,6 +164,13 @@ function MobileNav() {
           >
             <LineChart className="h-5 w-5" />
             Settings
+          </Link>
+          <Link
+            href="/upload-demo"
+            className="flex items-center gap-4 px-2.5 text-muted-foreground hover:text-foreground"
+          >
+            <Package2 className="h-5 w-5" />
+            文件上传
           </Link>
         </nav>
       </SheetContent>
