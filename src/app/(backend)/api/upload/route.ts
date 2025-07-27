@@ -3,7 +3,7 @@ import { writeFile } from 'fs/promises';
 import { join } from 'path';
 import { cwd } from 'process';
 import { v4 as uuidv4 } from 'uuid';
-import { ensureUploadDirectory, getFileUrl } from '@/lib/upload-utils';
+import { ensureUploadDirectory, getFileUrl } from '@/libs/upload-utils';
 import debug from 'debug';
 
 const log = debug('tryon:upload-api');
