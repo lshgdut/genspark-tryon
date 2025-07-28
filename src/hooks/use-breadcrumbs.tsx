@@ -18,12 +18,16 @@ const routeMapping: Record<string, BreadcrumbItem[]> = {
   '/upload-demo': [
     { title: '$$', link: '/' },
     { title: 'Upload Demo', link: '/upload-demo' }
+  ],
+  '/trpc-demo': [
+    { title: '$$', link: '/' },
+    { title: 'Trpc Demo', link: '/trpc-demo' }
   ]
   // Add more custom mappings as needed
 };
 
 export function useBreadcrumbs() {
-  
+
   const pathname = usePathname();
 
   const breadcrumbs = useMemo(() => {

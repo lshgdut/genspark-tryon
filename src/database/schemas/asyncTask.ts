@@ -12,6 +12,7 @@ export const asyncTasks = pgTable('async_tasks', {
   error: jsonb('error'),
 
   userId: text('user_id')
+    .default('admin')
     // .references(() => users.id, { onDelete: 'cascade' })
     .notNull(),
   duration: integer('duration'),
