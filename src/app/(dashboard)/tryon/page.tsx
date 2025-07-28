@@ -1,43 +1,116 @@
 "use client"
-import React, { useState } from "react"
+
+import React, { useEffect, useState } from "react"
 import Image from "next/image"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Card } from "@/components/ui/card"
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs"
 
+import { fileService } from "@/services/file"
+
+const convertToBase64 = (file: File): Promise<string> => {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader()
+    reader.readAsDataURL(file)
+    reader.onload = () => {
+      resolve(reader.result as string)
+    }
+    reader.onerror = reject
+  })
+}
+
 export default function ImageGenApp() {
   const [step, setStep] = useState("step1")
   const [modelImage, setModelImage] = useState<File | null>(null)
   const [clothImage, setClothImage] = useState<File | null>(null)
+  const [modelFileId, setModelFileId] = useState<string | null>(null)
+  const [clothFileId, setClothFileId] = useState<string | null>(null)
   const [compositeImage, setCompositeImage] = useState<string | null>(null)
   const [videoURL, setVideoURL] = useState<string | null>(null)
   const [isGenerating, setIsGenerating] = useState(false)
   const [isVideoGenerating, setIsVideoGenerating] = useState(false)
 
-  const handleUpload = () => {
+  const handleUpload = async () => {
     setIsGenerating(true)
-    setTimeout(() => {
-      setCompositeImage("/tryon/m2.jpg")
-      setIsGenerating(false)
-      setStep("step2")
-    }, 1500)
-  }
 
-  const handleRegenerate = () => {
-    setIsGenerating(true)
-    setTimeout(() => {
+    try {
+      const [modelId, clothId] = await Promise.all([
+        fileService.upload({
+          name: modelImage!.name,
+          type: modelImage!.type,
+          size: modelImage!.size,
+          base64: await convertToBase64(modelImage!),
+        }),
+        fileService.upload({
+          name: clothImage!.name,
+          type: clothImage!.type,
+          size: clothImage!.size,
+          base64: await convertToBase64(clothImage!),
+        }),
+      ])
+
+      // 保存文件ID到状态中
+      setModelFileId(modelId)
+      setClothFileId(clothId)
+      
+      // 模拟生成合成图片
       setCompositeImage("/tryon/m2-regenerated.png")
       setIsGenerating(false)
-    }, 1200)
+      setStep("step2")
+    } catch (error) {
+      console.error("上传文件失败:", error)
+      setIsGenerating(false)
+    }
   }
 
-  const handleGenerateVideo = () => {
+  const handleRegenerate = async () => {
+    if (!modelFileId || !clothFileId) {
+      console.error("缺少模型或服装文件ID")
+      return
+    }
+    
+    setIsGenerating(true)
+    
+    try {
+      // 这里应该调用后端API，发送modelFileId和clothFileId
+      console.log("发送重新生成请求，模型ID:", modelFileId, "服装ID:", clothFileId)
+      
+      // 模拟API调用延迟
+      await new Promise(resolve => setTimeout(resolve, 1200))
+      
+      // 模拟接收到新的合成图片
+      setCompositeImage("/tryon/m2-regenerated.png")
+    } catch (error) {
+      console.error("重新生成失败:", error)
+    } finally {
+      setIsGenerating(false)
+    }
+  }
+
+  const handleGenerateVideo = async () => {
+    if (!modelFileId || !clothFileId) {
+      console.error("缺少模型或服装文件ID")
+      return
+    }
+    
+    setStep("step3")
     setIsVideoGenerating(true)
-    setTimeout(() => {
+    
+    try {
+      // 这里应该调用后端API，发送modelFileId和clothFileId生成视频
+      console.log("发送生成视频请求，模型ID:", modelFileId, "服装ID:", clothFileId)
+      
+      // 模拟API调用延迟
+      await new Promise(resolve => setTimeout(resolve, 2000))
+      
+      // 模拟接收到生成的视频URL
       setVideoURL("/tryon/m2-regenerated.mp4")
+    } catch (error) {
+      console.error("生成视频失败:", error)
+    } finally {
       setIsVideoGenerating(false)
-    }, 2000)
+    }
   }
 
   return (
@@ -50,18 +123,18 @@ export default function ImageGenApp() {
         </TabsList>
 
         <TabsContent value="step1">
-          <Card className="p-6">
-            <h2 className="text-xl font-semibold mb-4">第一步：上传素材</h2>
+          <Card className="border-1 rounded-sm p-6">
             <div className="grid grid-cols-2 gap-6">
               {[
-                { label: "Model", file: modelImage, setFile: setModelImage },
-                { label: "Cloth", file: clothImage, setFile: setClothImage }
-              ].map(({ label, file, setFile }) => (
+                { label: "Model", text: '模型图片', file: modelImage, setFile: setModelImage },
+                { label: "Cloth", text: '服装图片', file: clothImage, setFile: setClothImage }
+              ].map(({ label, text, file, setFile }) => (
                 <div key={label} className="flex flex-col items-center justify-center py-6">
+                  <div className="text-sm font-medium mb-2">{text}</div>
                   {file ? (
                     <Image
                       src={URL.createObjectURL(file)}
-                      alt={label.toLowerCase()}
+                      alt={text}
                       width={150}
                       height={150}
                       className="object-cover"
@@ -94,8 +167,7 @@ export default function ImageGenApp() {
         </TabsContent>
 
         <TabsContent value="step2">
-          <Card className="p-6">
-            <h2 className="text-xl font-semibold mb-4">第二步：确认换装</h2>
+          <Card className="border-1 rounded-sm p-6">
             <div className="flex justify-center">
               {compositeImage && (
                 <Image
@@ -103,7 +175,7 @@ export default function ImageGenApp() {
                   alt="composite"
                   width={400}
                   height={300}
-                  className="mb-4"
+                  className="mb-4 object-cover"
                 />
               )}
             </div>
@@ -122,8 +194,7 @@ export default function ImageGenApp() {
         </TabsContent>
 
         <TabsContent value="step3">
-          <Card className="p-6">
-            <h2 className="text-xl font-semibold mb-4">第三步：生成视频</h2>
+          <Card className="border-1 rounded-sm p-6">
             <div className="flex justify-center">
               {compositeImage && (
                 <div className="relative">
@@ -154,11 +225,9 @@ export default function ImageGenApp() {
               )}
             </div>
             <div className="flex justify-center gap-4 flex-wrap">
-              {!videoURL && (
-                <Button variant="destructive" onClick={handleGenerateVideo} disabled={isVideoGenerating}>
-                  {isVideoGenerating ? "正在生成..." : "重新生成视频"}
-                </Button>
-              )}
+              <Button variant="destructive" onClick={handleGenerateVideo} disabled={isVideoGenerating}>
+                {isVideoGenerating ? "正在生成..." : "重新生成视频"}
+              </Button>
               {videoURL && (
                 <Button variant="secondary" asChild>
                   <a href={videoURL} download>

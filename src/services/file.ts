@@ -1,9 +1,6 @@
 import { lambdaClient } from '@/libs/trpc/client';
 
-export interface FileItem {
-  fileId: string;
-  success: boolean;
-}
+type fileId = string
 
 export interface IFileService {
   upload(file: {
@@ -11,13 +8,13 @@ export interface IFileService {
     type: string;
     size: number;
     base64: string;
-  }): Promise<FileItem>;
+  }): Promise<fileId>;
 }
 
 export class FileService implements IFileService {
   upload: IFileService['upload'] = async (file) => {
     const result = await lambdaClient.file.upload.mutate({ file });
-    return result;
+    return result.fileId;
   };
 }
 
