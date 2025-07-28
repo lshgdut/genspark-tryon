@@ -70,7 +70,7 @@ function DesktopNav() {
           <Home className="h-5 w-5" />
         </NavItem>
 
-        <NavItem href="/trpc-demo" label="异步任务">
+        <NavItem href="/tryon" label="换装">
           <Users2 className="h-5 w-5" />
         </NavItem>
 
