@@ -3,6 +3,8 @@ import { join } from 'path';
 import { cwd } from 'process';
 import debug from 'debug';
 
+import { appEnv } from '@/envs/app';
+
 const log = debug('tryon:upload-utils');
 
 /**
@@ -32,16 +34,7 @@ export async function ensureUploadDirectory() {
 /**
  * 生成文件URL
  */
-export function getFileUrl(fileName: string): string {
+export function getComposedFileUrl(fileName: string): string {
   // 如果使用默认的public/uploads目录，则返回相对URL
-  const defaultDir = join(cwd(), 'public', 'uploads');
-  const uploadDir = getUploadDirectory();
-  
-  if (uploadDir === defaultDir) {
-    return `/uploads/${fileName}`;
-  } else {
-    // 如果使用自定义目录，则返回完整的文件路径
-    // 注意：这种情况下可能需要额外的路由配置来提供文件访问
-    return join(uploadDir, fileName);
-  }
+  return `${appEnv.APP_URL || ''}/composed/${fileName}`;
 }

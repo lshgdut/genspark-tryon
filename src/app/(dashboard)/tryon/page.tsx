@@ -8,6 +8,7 @@ import { Card } from "@/components/ui/card"
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs"
 
 import { fileService } from "@/services/file"
+import { tryonService } from "@/services/tryon"
 
 const convertToBase64 = (file: File): Promise<string> => {
   return new Promise((resolve, reject) => {
@@ -35,6 +36,7 @@ export default function ImageGenApp() {
     setIsGenerating(true)
 
     try {
+      // 上传模型和服装图片
       const [modelId, clothId] = await Promise.all([
         fileService.upload({
           name: modelImage!.name,
@@ -54,12 +56,29 @@ export default function ImageGenApp() {
       setModelFileId(modelId)
       setClothFileId(clothId)
       
-      // 模拟生成合成图片
-      setCompositeImage("/tryon/m2-regenerated.png")
-      setIsGenerating(false)
+      console.log("文件上传成功，模型ID:", modelId, "服装ID:", clothId)
+      
+      // 创建合成图片任务
+      const jobId = await tryonService.composeImage({
+        modelFileId: modelId,
+        clothFileId: clothId
+      })
+      
+      console.log("创建合成图片任务成功，任务ID:", jobId)
+      
+      // 轮询任务状态
+      const result = await tryonService.pollTaskStatus<{imageUrl: string; fileName: string}>(jobId, {
+        onProgress: (status) => {
+          console.log(`合成图片任务状态: ${status}`)
+        }
+      })
+      
+      // 设置合成图片URL
+      setCompositeImage(result.imageUrl)
       setStep("step2")
     } catch (error) {
-      console.error("上传文件失败:", error)
+      console.error("上传文件或生成图片失败:", error)
+    } finally {
       setIsGenerating(false)
     }
   }
@@ -73,14 +92,24 @@ export default function ImageGenApp() {
     setIsGenerating(true)
     
     try {
-      // 这里应该调用后端API，发送modelFileId和clothFileId
+      // 调用后端API，发送modelFileId和clothFileId
       console.log("发送重新生成请求，模型ID:", modelFileId, "服装ID:", clothFileId)
       
-      // 模拟API调用延迟
-      await new Promise(resolve => setTimeout(resolve, 1200))
+      // 创建合成图片任务
+      const jobId = await tryonService.composeImage({
+        modelFileId,
+        clothFileId
+      })
       
-      // 模拟接收到新的合成图片
-      setCompositeImage("/tryon/m2-regenerated.png")
+      // 轮询任务状态
+      const result = await tryonService.pollTaskStatus<{imageUrl: string; fileName: string}>(jobId, {
+        onProgress: (status) => {
+          console.log(`合成图片任务状态: ${status}`)
+        }
+      })
+      
+      // 设置合成图片URL
+      setCompositeImage(result.imageUrl)
     } catch (error) {
       console.error("重新生成失败:", error)
     } finally {
@@ -89,8 +118,8 @@ export default function ImageGenApp() {
   }
 
   const handleGenerateVideo = async () => {
-    if (!modelFileId || !clothFileId) {
-      console.error("缺少模型或服装文件ID")
+    if (!compositeImage) {
+      console.error("缺少合成图片")
       return
     }
     
@@ -98,14 +127,25 @@ export default function ImageGenApp() {
     setIsVideoGenerating(true)
     
     try {
-      // 这里应该调用后端API，发送modelFileId和clothFileId生成视频
-      console.log("发送生成视频请求，模型ID:", modelFileId, "服装ID:", clothFileId)
+      // 调用后端API，发送合成图片URL生成视频
+      console.log("发送生成视频请求，合成图片URL:", compositeImage)
       
-      // 模拟API调用延迟
-      await new Promise(resolve => setTimeout(resolve, 2000))
+      // 创建生成视频任务
+      const jobId = await tryonService.composeVideo({
+        compositeImageUrl: compositeImage
+      })
       
-      // 模拟接收到生成的视频URL
-      setVideoURL("/tryon/m2-regenerated.mp4")
+      // 轮询任务状态
+      const result = await tryonService.pollTaskStatus<{videoUrl: string; fileName: string}>(jobId, {
+        // 视频生成可能需要更长时间
+        timeout: 120000, // 2分钟超时
+        onProgress: (status) => {
+          console.log(`生成视频任务状态: ${status}`)
+        }
+      })
+      
+      // 设置视频URL
+      setVideoURL(result.videoUrl)
     } catch (error) {
       console.error("生成视频失败:", error)
     } finally {
