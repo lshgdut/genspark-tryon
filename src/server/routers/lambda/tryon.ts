@@ -123,40 +123,40 @@ export const tryonRouter = router({
       return job;
     }),
 
-  subscribeTaskStatus: authedProcedure
-    .input(
-      z.object({
-        jobId: z.string(),
-      }),
-    )
-    .subscription(async function* ({ input }) {
-      const { jobId } = input;
+  // subscribeTaskStatus: authedProcedure
+  //   .input(
+  //     z.object({
+  //       jobId: z.string(),
+  //     }),
+  //   )
+  //   .subscription(async function* ({ input }) {
+  //     const { jobId } = input;
 
-      // 检查任务是否存在
-      let job = getJob(jobId);
-      if (!job) {
-        throw new TRPCError({
-          code: 'NOT_FOUND',
-          message: '任务不存在'
-        });
-      }
+  //     // 检查任务是否存在
+  //     let job = getJob(jobId);
+  //     if (!job) {
+  //       throw new TRPCError({
+  //         code: 'NOT_FOUND',
+  //         message: '任务不存在'
+  //       });
+  //     }
 
-      // 立即发送当前状态
-      yield job;
+  //     // 立即发送当前状态
+  //     yield job;
 
-      // 定时检查任务状态变化
-      while (job.status !== 'completed' && job.status !== 'failed') {
-        await new Promise(resolve => setTimeout(resolve, 1000));
+  //     // 定时检查任务状态变化
+  //     while (job.status !== 'completed' && job.status !== 'failed') {
+  //       await new Promise(resolve => setTimeout(resolve, 1000));
 
-        job = getJob(jobId);
-        if (!job) {
-          throw new TRPCError({
-            code: 'NOT_FOUND',
-            message: '任务不存在'
-          });
-        }
+  //       job = getJob(jobId);
+  //       if (!job) {
+  //         throw new TRPCError({
+  //           code: 'NOT_FOUND',
+  //           message: '任务不存在'
+  //         });
+  //       }
 
-        yield job;
-      }
-    }),
+  //       yield job;
+  //     }
+  //   }),
 });

@@ -30,4 +30,17 @@ export const trpc = initTRPC.context<LambdaContext>().create({
    * @link https://trpc.io/docs/v11/data-transformers
    */
   transformer: superjson,
+  /**
+   * @link https://trpc.io/docs/v11/caching
+   */
+  sse: {
+    maxDurationMs: 5 * 60 * 1_000, // 5 minutes
+    ping: {
+      enabled: true,
+      intervalMs: 3_000,
+    },
+    client: {
+      reconnectAfterInactivityMs: 5_000,
+    },
+  },
 });

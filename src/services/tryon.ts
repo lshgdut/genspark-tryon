@@ -29,7 +29,7 @@ export interface ITryonService {
     onProgress?: (status: TaskStatus) => void;
   }): Promise<T>;
 
-  subscribeTaskStatus(jobId: string): Promise<TaskResult>;
+  // subscribeTaskStatus(jobId: string): Promise<TaskResult>;
 }
 
 export class TryonService implements ITryonService {
@@ -66,21 +66,21 @@ export class TryonService implements ITryonService {
           }
 
           // 获取任务状态
-          const taskStatus = await this.getTaskStatus(jobId);
+          const taskResult = await this.getTaskStatus(jobId);
 
           // 调用进度回调
           if (onProgress) {
-            onProgress(taskStatus.status);
+            onProgress(taskResult.status);
           }
 
           // 检查任务是否完成
-          if (taskStatus.status === 'completed') {
-            return resolve(taskStatus.result);
+          if (taskResult.status === 'completed') {
+            return resolve(taskResult.result);
           }
 
           // 检查任务是否失败
-          if (taskStatus.status === 'failed') {
-            return reject(new Error(taskStatus.error || '任务执行失败'));
+          if (taskResult.status === 'failed') {
+            return reject(new Error(taskResult.error || '任务执行失败'));
           }
 
           // 继续轮询
@@ -95,32 +95,33 @@ export class TryonService implements ITryonService {
     });
   };
 
-  subscribeTaskStatus: ITryonService['subscribeTaskStatus'] = async (jobId) => {
+  // subscribeTaskStatus: ITryonService['subscribeTaskStatus'] = async (jobId) => {
 
-    return new Promise<TaskResult>((resolve, reject) => {
-      let result: TaskResult
-      lambdaClient.tryon.subscribeTaskStatus.subscribe({ jobId }, {
-        onData: (value) => {
-          // resolve(value);
-          console.log('sub',value)
-          result = value;
-        },
-        onComplete: () => {
-          // console.log("")
-          resolve({
-            status: "completed",
-            result: result
-          });
-        },
-        onError: (error) => {
-          reject({
-            status: "error",
-            error: error.message,
-          });
-        }
-      });
-    });
-  };
+  //   return new Promise<TaskResult>((resolve, reject) => {
+  //     let result: TaskResult
+
+  //     lambdaClient.tryon.subscribeTaskStatus.subscribe({ jobId }, {
+  //       onData: (value) => {
+  //         // resolve(value);
+  //         console.log('sub',value)
+  //         result = value;
+  //       },
+  //       onComplete: () => {
+  //         // console.log("")
+  //         resolve({
+  //           status: "completed",
+  //           result: result
+  //         });
+  //       },
+  //       onError: (error) => {
+  //         reject({
+  //           status: "error",
+  //           error: error.message,
+  //         });
+  //       }
+  //     });
+  //   });
+  // };
 }
 
 export const tryonService = new TryonService();

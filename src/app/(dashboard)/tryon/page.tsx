@@ -5,11 +5,16 @@ import Image from "next/image"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Card } from "@/components/ui/card"
+import { Spinner } from "@/components/icons"
+
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs"
 import { Alert, AlertTitle, AlertDescription } from "@/components/ui/alert"
 
 import { fileService } from "@/services/file"
 import { tryonService } from "@/services/tryon"
+import debug from 'debug';
+
+const log = debug('tryon:tryon-page');
 
 const convertToBase64 = (file: File): Promise<string> => {
   return new Promise((resolve, reject) => {
@@ -36,6 +41,11 @@ export default function ImageGenApp() {
   const [regenerateError, setRegenerateError] = useState<string | null>(null)
   const [videoError, setVideoError] = useState<string | null>(null)
 
+
+  // useEffect(()=>{
+  //   setStep("step2")
+  //   setIsGenerating(true)
+  // },[])
   const handleUpload = async () => {
     setIsGenerating(true)
     setUploadError(null)
@@ -61,22 +71,28 @@ export default function ImageGenApp() {
       setModelFileId(modelId)
       setClothFileId(clothId)
 
-      console.log("文件上传成功，模特ID:", modelId, "服装ID:", clothId)
+      log("文件上传成功，模特ID:", modelId, "服装ID:", clothId)
 
       // 创建合成图片任务
       setStep("step2")
-      await handleRegenerate()
+      // 直接传递文件ID给handleRegenerate，避免状态更新延迟问题
+      await handleRegenerate(modelId, clothId)
     } catch (error) {
-      console.error("上传文件或生成图片失败:", error)
+      log("上传文件或生成图片失败:", error)
       setUploadError(error instanceof Error ? error.message : "上传文件或生成图片过程中发生错误")
     } finally {
       setIsGenerating(false)
     }
   }
 
-  const handleRegenerate = async () => {
-    if (!modelFileId || !clothFileId) {
-      console.error("缺少模特或服装文件ID")
+  // 修改handleRegenerate函数，接受直接传入的文件ID参数
+  const handleRegenerate = async (modelId?: string, clothId?: string) => {
+    // 如果没有传入参数，则使用状态中的值
+    const actualModelId = modelId || modelFileId;
+    const actualClothId = clothId || clothFileId;
+
+    if (!actualModelId || !actualClothId) {
+      log("缺少模特或服装文件ID, modelFileId:", actualModelId, "clothFileId:", actualClothId)
       return
     }
 
@@ -85,26 +101,27 @@ export default function ImageGenApp() {
 
     try {
       // 调用后端API，发送modelFileId和clothFileId
-      console.log("发送重新生成请求，模特ID:", modelFileId, "服装ID:", clothFileId)
+      log("发送重新生成请求，模特ID:", actualModelId, "服装ID:", actualClothId)
 
       // 创建合成图片任务
       const jobId = await tryonService.composeImage({
-        modelFileId,
-        clothFileId
+        modelFileId: actualModelId,
+        clothFileId: actualClothId
       })
 
       // 轮询任务状态
-      const result = await tryonService.pollTaskStatus<{imageUrl: string; fileName: string}>(jobId, {
-        timeout: 60 * 60 * 1000, // 1小时超时
-        onProgress: (status) => {
-          // console.log(`合成图片任务状态: ${status}`)
-        }
-      })
+      // const result = await tryonService.pollTaskStatus<{imageUrl: string; fileName: string}>(jobId, {
+      //   timeout: 60 * 60 * 1000, // 1小时超时
+      //   onProgress: (status) => {
+      //     // console.log(`合成图片任务状态: ${status}`)
+      //   }
+      // })
+      const imageUrl = await tryonService.pollTaskStatus<string>(jobId)
 
-      // 设置合成图片URL
-      setCompositeImage(result.imageUrl)
+          // 设置合成图片URL
+      setCompositeImage(imageUrl)
     } catch (error) {
-      console.error("重新生成失败:", error)
+      log("重新生成失败:", error)
       setRegenerateError(error instanceof Error ? error.message : "重新生成图片过程中发生错误")
     } finally {
       setIsGenerating(false)
@@ -113,7 +130,7 @@ export default function ImageGenApp() {
 
   const handleGenerateVideo = async () => {
     if (!compositeImage) {
-      console.error("缺少合成图片")
+      log("缺少合成图片")
       return
     }
 
@@ -123,7 +140,7 @@ export default function ImageGenApp() {
 
     try {
       // 调用后端API，发送合成图片URL生成视频
-      console.log("发送生成视频请求，合成图片URL:", compositeImage)
+      log("发送生成视频请求，合成图片URL:", compositeImage)
 
       // 创建生成视频任务
       const jobId = await tryonService.composeVideo({
@@ -135,14 +152,14 @@ export default function ImageGenApp() {
         // 视频生成可能需要更长时间
         timeout: 2 * 60 * 60 * 1000, // 2小时超时
         onProgress: (status) => {
-          // console.log(`生成视频任务状态: ${status}`)
+          // log(`生成视频任务状态: ${status}`)
         }
       })
 
       // 设置视频URL
       setVideoURL(result.videoUrl)
     } catch (error) {
-      console.error("生成视频失败:", error)
+      log("生成视频失败:", error)
       setVideoError(error instanceof Error ? error.message : "生成视频过程中发生错误")
     } finally {
       setIsVideoGenerating(false)
@@ -221,10 +238,14 @@ export default function ImageGenApp() {
                   className="mb-4 object-cover"
                 />
               )}
+              {isGenerating && <div className="relative mb-4 object-cover h-[300px]">
+                  <Spinner/>
+                </div>
+              }
             </div>
             <div className="flex flex-col items-center justify-center">
               <div className="flex flex-col md:flex-row justify-center gap-4">
-                <Button variant="default" onClick={handleRegenerate} disabled={isGenerating}>
+                <Button variant="default" onClick={() => handleRegenerate()} disabled={isGenerating}>
                   {isGenerating ? "正在生成..." : "重新换装"}
                 </Button>
                 {/* <Button variant="destructive" onClick={() => setStep("step1")} disabled={isGenerating}>
