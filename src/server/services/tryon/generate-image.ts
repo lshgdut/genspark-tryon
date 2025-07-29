@@ -196,7 +196,10 @@ async function uploadClothing(page: Page, clothFileId: string) {
   })
 }
 
-async function saveResultImage(page: Page, imageUrl: string): Promise<string> {
+
+import { ITryonProgess, ITryonComposedImage } from '@/types/tryon';
+
+async function saveResultImage(page: Page, imageUrl: string): Promise<ITryonComposedImage> {
   const imageResp = await page.evaluate(async (url: string) => {
     const res = await fetch(url);
     console.log(res.headers.get("content-type"))
@@ -210,16 +213,20 @@ async function saveResultImage(page: Page, imageUrl: string): Promise<string> {
   const realPath = await saveComposedImage(fileName, Buffer.from(imageResp))
   log('结果图片保存成功:', realPath);
 
-  return await getComposedFileUrl(fileName)
+  const fileUrl = await getComposedFileUrl(fileName)
+  return {
+    filePath: realPath,
+    fileId: fileName,
+    fileUrl: fileUrl,
+  }
 }
 
-import { ITryonProgess } from '@/types/tryon';
 
 // https://www.genspark.ai/fashion/target?id=60f3dd9fe107ad62fde489b7a525bed6&pr=1&from=tryon
 export async function* composeImage(params: {
   modelFileId: string;
   clothFileId: string;
-}) : AsyncGenerator<ITryonProgess<string>> {
+}): AsyncGenerator<ITryonProgess<ITryonComposedImage>> {
   const browser = await chromium.launch({ headless: false }); // 设置 headless 为 false 可以看到浏览器界面
   const context = await browser.newContext();
 
@@ -273,13 +280,13 @@ export async function* composeImage(params: {
         progress: 90,
         message: '正在保存换装图片...'
       }
-      const imageFilepath = await saveResultImage(page, img)
+      const imageFile = await saveResultImage(page, img)
       yield {
         stage: (stage = 'done'),
         status: 'completed',
         progress: 100,
         message: '换装成功！',
-        result: imageFilepath
+        result: imageFile
       }
     }
     else {

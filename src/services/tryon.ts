@@ -16,7 +16,7 @@ export interface ITryonService {
   }): Promise<JobId>;
 
   composeVideo(params: {
-    compositeImageUrl: string;
+    fileId: string;
   }): Promise<JobId>;
 
   getTaskStatus(jobId: string): Promise<TaskResult>;

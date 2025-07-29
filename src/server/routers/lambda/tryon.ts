@@ -30,11 +30,11 @@ export const tryonRouter = router({
           // 模拟AI处理过程
           // await new Promise((resolve) => setTimeout(resolve, 3000));
 
-          let imageUrl
+          let imageFile
           for await (const progress of composeImage({ modelFileId, clothFileId })) {
             log(`合成图片进度: ${progress.progress}%, 状态: ${progress.status}`);
             if (progress.status === 'completed') {
-              imageUrl = progress.result
+              imageFile = progress.result
               break;
             }
             if (progress.status === 'failed') {
@@ -42,14 +42,11 @@ export const tryonRouter = router({
               break
             }
           }
-          if (!imageUrl) {
+          if (!imageFile) {
             throw new Error('图片合成失败, 无法获取合成图片地址');
           }
           // 返回结果
-          return {
-            imageUrl,
-            fileName: basename(imageUrl)
-          };
+          return imageFile;
         });
 
         return { jobId };
@@ -68,14 +65,14 @@ export const tryonRouter = router({
   composeVideo: authedProcedure
     .input(
       z.object({
-        compositeImageUrl: z.string(),
+        fileId: z.string(),
       }),
     )
     .mutation(async ({ input }) => {
       try {
-        const { compositeImageUrl } = input;
+        const { fileId } = input;
 
-        log(`开始生成视频任务，合成图片URL: ${compositeImageUrl}`);
+        log(`开始生成视频任务，合成图片URL: ${fileId}`);
 
         // 创建异步任务
         const jobId = createJob(async () => {

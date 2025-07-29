@@ -12,6 +12,7 @@ import { Alert, AlertTitle, AlertDescription } from "@/components/ui/alert"
 
 import { fileService } from "@/services/file"
 import { tryonService } from "@/services/tryon"
+import { ITryonComposedImage } from '@/types/tryon';
 import debug from 'debug';
 
 const log = debug('tryon:tryon-page');
@@ -33,7 +34,7 @@ export default function ImageGenApp() {
   const [clothImage, setClothImage] = useState<File | null>(null)
   const [modelFileId, setModelFileId] = useState<string | null>(null)
   const [clothFileId, setClothFileId] = useState<string | null>(null)
-  const [compositeImage, setCompositeImage] = useState<string | null>(null)
+  const [compositeImage, setCompositeImage] = useState<ITryonComposedImage|null>(null)
   const [videoURL, setVideoURL] = useState<string | null>(null)
   const [isGenerating, setIsGenerating] = useState(false)
   const [isVideoGenerating, setIsVideoGenerating] = useState(false)
@@ -105,7 +106,7 @@ export default function ImageGenApp() {
       })
 
       // 轮询任务状态
-      const {imageUrl} = await tryonService.pollTaskStatus<{imageUrl: string}>(jobId, {
+      const composedImageFile = await tryonService.pollTaskStatus<ITryonComposedImage>(jobId, {
         timeout: 60 * 60 * 1000, // 1小时超时
         onProgress: (status) => {
           // console.log(`合成图片任务状态: ${status}`)
@@ -113,7 +114,7 @@ export default function ImageGenApp() {
       })
 
           // 设置合成图片URL
-      setCompositeImage(imageUrl)
+      setCompositeImage(composedImageFile)
     } catch (error) {
       log("重新生成失败:", error)
       setRegenerateError(error instanceof Error ? error.message : "重新生成图片过程中发生错误")
@@ -138,7 +139,7 @@ export default function ImageGenApp() {
 
       // 创建生成视频任务
       const jobId = await tryonService.composeVideo({
-        compositeImageUrl: compositeImage
+        fileId: compositeImage.fileId
       })
 
       // 轮询任务状态
@@ -225,7 +226,7 @@ export default function ImageGenApp() {
             <div className="flex justify-center">
               {!isGenerating && compositeImage && (
                 <Image
-                  src={compositeImage}
+                  src={compositeImage?.fileUrl}
                   alt="composite"
                   width={400}
                   height={300}
@@ -281,7 +282,7 @@ export default function ImageGenApp() {
                     </video>
                   ) : (
                     <Image
-                      src={compositeImage}
+                      src={compositeImage?.fileUrl}
                       alt="composite-bg"
                       width={400}
                       height={300}

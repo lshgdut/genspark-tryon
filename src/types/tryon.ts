@@ -7,3 +7,9 @@ export interface ITryonProgess<T> {
   error?: string
   result?: T
 }
+
+export interface ITryonComposedImage {
+  filePath: string
+  fileUrl: string
+  fileId: string
+}
