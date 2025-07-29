@@ -7,7 +7,7 @@ import { gensparkEnv } from '@/config/genspark';
 import { ITryonProgess, ITryonCompositedFile } from '@/types/tryon';
 import { saveComposedFile, getComposedFileUrl, getComposedFilePath } from './_utils';
 
-const log = debug('tryon:generate-image');
+const log = debug('tryon:generate-video');
 
 const videoPageUrl = 'https://www.genspark.ai/agents?type=moa_generate_video';
 
