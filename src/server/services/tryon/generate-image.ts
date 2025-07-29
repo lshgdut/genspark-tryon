@@ -12,7 +12,7 @@ import { gensparkEnv } from '@/config/genspark';
 const log = debug('tryon:generate-image');
 const photoUploadUrl = 'https://www.genspark.ai/fashion/my_photo';
 const clothingUploadUrl = 'https://www.genspark.ai/fashion/uploadCustom?from=image_studio';
-
+import { ITryonProgess, ITryonCompositedFile } from '@/types/tryon';
 
 async function check_user(page: Page): Promise<boolean> {
   const url = 'https://www.genspark.ai/api/user'
@@ -196,10 +196,7 @@ async function uploadClothing(page: Page, clothFileId: string) {
   })
 }
 
-
-import { ITryonProgess, ITryonComposedImage } from '@/types/tryon';
-
-async function saveResultImage(page: Page, imageUrl: string): Promise<ITryonComposedImage> {
+async function saveResultImage(page: Page, imageUrl: string): Promise<ITryonCompositedFile> {
   const imageResp = await page.evaluate(async (url: string) => {
     const res = await fetch(url);
     console.log(res.headers.get("content-type"))
@@ -215,7 +212,7 @@ async function saveResultImage(page: Page, imageUrl: string): Promise<ITryonComp
 
   const fileUrl = await getComposedFileUrl(fileName)
   return {
-    filePath: realPath,
+    // filePath: realPath,
     fileId: fileName,
     fileUrl: fileUrl,
   }
@@ -226,7 +223,7 @@ async function saveResultImage(page: Page, imageUrl: string): Promise<ITryonComp
 export async function* composeImage(params: {
   modelFileId: string;
   clothFileId: string;
-}): AsyncGenerator<ITryonProgess<ITryonComposedImage>> {
+}): AsyncGenerator<ITryonProgess<ITryonCompositedFile>> {
   const browser = await chromium.launch({ headless: false }); // 设置 headless 为 false 可以看到浏览器界面
   const context = await browser.newContext();
 

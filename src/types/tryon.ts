@@ -8,8 +8,8 @@ export interface ITryonProgess<T> {
   result?: T
 }
 
-export interface ITryonComposedImage {
-  filePath: string
+export interface ITryonCompositedFile {
+  filePath?: string
   fileUrl: string
   fileId: string
 }

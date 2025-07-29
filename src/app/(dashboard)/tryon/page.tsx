@@ -12,7 +12,7 @@ import { Alert, AlertTitle, AlertDescription } from "@/components/ui/alert"
 
 import { fileService } from "@/services/file"
 import { tryonService } from "@/services/tryon"
-import { ITryonComposedImage } from '@/types/tryon';
+import { ITryonCompositedFile } from '@/types/tryon';
 import debug from 'debug';
 
 const log = debug('tryon:tryon-page');
@@ -34,8 +34,8 @@ export default function ImageGenApp() {
   const [clothImage, setClothImage] = useState<File | null>(null)
   const [modelFileId, setModelFileId] = useState<string | null>(null)
   const [clothFileId, setClothFileId] = useState<string | null>(null)
-  const [compositeImage, setCompositeImage] = useState<ITryonComposedImage|null>(null)
-  const [videoURL, setVideoURL] = useState<string | null>(null)
+  const [compositeImage, setCompositeImage] = useState<ITryonCompositedFile | null>(null)
+  const [compositeVideo, setCompositeVideo] = useState<ITryonCompositedFile | null>(null)
   const [isGenerating, setIsGenerating] = useState(false)
   const [isVideoGenerating, setIsVideoGenerating] = useState(false)
   const [uploadError, setUploadError] = useState<string | null>(null)
@@ -106,7 +106,7 @@ export default function ImageGenApp() {
       })
 
       // 轮询任务状态
-      const composedImageFile = await tryonService.pollTaskStatus<ITryonComposedImage>(jobId, {
+      const compositeImageFile = await tryonService.pollTaskStatus<ITryonCompositedFile>(jobId, {
         timeout: 60 * 60 * 1000, // 1小时超时
         onProgress: (status) => {
           // console.log(`合成图片任务状态: ${status}`)
@@ -114,7 +114,7 @@ export default function ImageGenApp() {
       })
 
           // 设置合成图片URL
-      setCompositeImage(composedImageFile)
+      setCompositeImage(compositeImageFile)
     } catch (error) {
       log("重新生成失败:", error)
       setRegenerateError(error instanceof Error ? error.message : "重新生成图片过程中发生错误")
@@ -143,7 +143,7 @@ export default function ImageGenApp() {
       })
 
       // 轮询任务状态
-      const result = await tryonService.pollTaskStatus<{videoUrl: string; fileName: string}>(jobId, {
+      const result = await tryonService.pollTaskStatus<ITryonCompositedFile>(jobId, {
         // 视频生成可能需要更长时间
         timeout: 2 * 60 * 60 * 1000, // 2小时超时
         onProgress: (status) => {
@@ -152,7 +152,7 @@ export default function ImageGenApp() {
       })
 
       // 设置视频URL
-      setVideoURL(result.videoUrl)
+      setCompositeVideo(result)
     } catch (error) {
       log("生成视频失败:", error)
       setVideoError(error instanceof Error ? error.message : "生成视频过程中发生错误")
@@ -266,18 +266,18 @@ export default function ImageGenApp() {
             <div className="flex justify-center">
               {compositeImage && (
                 <div className="relative">
-                  {isVideoGenerating && !videoURL ? (
+                  {isVideoGenerating && !compositeVideo ? (
                     <div className="w-[400px] h-[300px] flex items-center justify-center bg-muted text-sm text-muted-foreground">
                       Generating Video...
                     </div>
-                  ) : videoURL ? (
+                  ) : compositeVideo ? (
                     <video
                       width={400}
                       height={300}
                       controls
                       className="mb-4"
                     >
-                      <source src={videoURL} type="video/mp4" />
+                      <source src={compositeVideo.fileUrl} type="video/mp4" />
                       Your browser does not support the video tag.
                     </video>
                   ) : (
@@ -297,9 +297,9 @@ export default function ImageGenApp() {
                 <Button variant="destructive" onClick={handleGenerateVideo} disabled={isVideoGenerating}>
                   {isVideoGenerating ? "正在生成..." : "重新生成视频"}
                 </Button>
-                {videoURL && (
+                {compositeVideo && (
                   <Button variant="secondary" asChild>
-                    <a href={videoURL} download>
+                    <a href={compositeVideo.fileUrl} download>
                       下载视频
                     </a>
                   </Button>
