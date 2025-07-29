@@ -1,9 +1,7 @@
-import { mkdir } from 'fs/promises';
+import { mkdir,access } from 'fs/promises';
 import { join } from 'path';
 import { cwd } from 'process';
 import debug from 'debug';
-
-import { appEnv } from '@/envs/app';
 
 const log = debug('tryon:upload-utils');
 
@@ -32,9 +30,16 @@ export async function ensureUploadDirectory() {
 }
 
 /**
- * 生成文件URL
+ * 获取上传文件路径
  */
-export function getComposedFileUrl(fileName: string): string {
-  // 如果使用默认的public/uploads目录，则返回相对URL
-  return `${appEnv.APP_URL || ''}/composed/${fileName}`;
+export async function getUploadFilePath(fileName: string): Promise<string | null> {
+  try {
+    const uploadsDir = getUploadDirectory();
+    const filePath = join(uploadsDir, fileName);
+    await access(filePath);
+
+    return filePath;
+  } catch (error) {
+    return null;
+  }
 }

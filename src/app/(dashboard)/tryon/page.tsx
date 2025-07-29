@@ -55,24 +55,24 @@ export default function ImageGenApp() {
       // 保存文件ID到状态中
       setModelFileId(modelId)
       setClothFileId(clothId)
-      
+
       console.log("文件上传成功，模型ID:", modelId, "服装ID:", clothId)
-      
+
       // 创建合成图片任务
       const jobId = await tryonService.composeImage({
         modelFileId: modelId,
         clothFileId: clothId
       })
-      
+
       console.log("创建合成图片任务成功，任务ID:", jobId)
-      
+
       // 轮询任务状态
       const result = await tryonService.pollTaskStatus<{imageUrl: string; fileName: string}>(jobId, {
         onProgress: (status) => {
           console.log(`合成图片任务状态: ${status}`)
         }
       })
-      
+
       // 设置合成图片URL
       setCompositeImage(result.imageUrl)
       setStep("step2")
@@ -88,26 +88,26 @@ export default function ImageGenApp() {
       console.error("缺少模型或服装文件ID")
       return
     }
-    
+
     setIsGenerating(true)
-    
+
     try {
       // 调用后端API，发送modelFileId和clothFileId
       console.log("发送重新生成请求，模型ID:", modelFileId, "服装ID:", clothFileId)
-      
+
       // 创建合成图片任务
       const jobId = await tryonService.composeImage({
         modelFileId,
         clothFileId
       })
-      
+
       // 轮询任务状态
       const result = await tryonService.pollTaskStatus<{imageUrl: string; fileName: string}>(jobId, {
         onProgress: (status) => {
-          console.log(`合成图片任务状态: ${status}`)
+          // console.log(`合成图片任务状态: ${status}`)
         }
       })
-      
+
       // 设置合成图片URL
       setCompositeImage(result.imageUrl)
     } catch (error) {
@@ -122,28 +122,28 @@ export default function ImageGenApp() {
       console.error("缺少合成图片")
       return
     }
-    
+
     setStep("step3")
     setIsVideoGenerating(true)
-    
+
     try {
       // 调用后端API，发送合成图片URL生成视频
       console.log("发送生成视频请求，合成图片URL:", compositeImage)
-      
+
       // 创建生成视频任务
       const jobId = await tryonService.composeVideo({
         compositeImageUrl: compositeImage
       })
-      
+
       // 轮询任务状态
       const result = await tryonService.pollTaskStatus<{videoUrl: string; fileName: string}>(jobId, {
         // 视频生成可能需要更长时间
-        timeout: 120000, // 2分钟超时
+        timeout: 60 * 60 * 1000, // 1小时超时
         onProgress: (status) => {
-          console.log(`生成视频任务状态: ${status}`)
+          // console.log(`生成视频任务状态: ${status}`)
         }
       })
-      
+
       // 设置视频URL
       setVideoURL(result.videoUrl)
     } catch (error) {

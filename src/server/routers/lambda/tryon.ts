@@ -1,11 +1,15 @@
+import debug from 'debug';
+import * as fs from 'node:fs';
+
 import { TRPCError } from '@trpc/server';
 import { z } from 'zod';
-import { join } from 'path';
+import { join,basename } from 'path';
 import { v4 as uuidv4 } from 'uuid';
 import { authedProcedure, router } from '@/libs/trpc/lambda';
 import { createJob, getJob } from '@/libs/trpc/task-manager';
-import { getComposedFileUrl } from '@/libs/upload-utils';
-import debug from 'debug';
+
+import { composeImage } from '@/server/services/tryon/generate-image';
+
 
 const log = debug('tryon:tryon-router');
 
@@ -25,23 +29,21 @@ export const tryonRouter = router({
 
         // 创建异步任务
         const jobId = createJob(async () => {
-          try {
-            // 模拟AI处理过程
-            await new Promise((resolve) => setTimeout(resolve, 3000));
+          // 模拟AI处理过程
+          // await new Promise((resolve) => setTimeout(resolve, 3000));
 
-            // 生成结果文件名（实际项目中这里应该是真正的AI处理逻辑）
-            // const resultFileName = `composed-${uuidv4()}.png`;
-            const resultFileName = 'm2-regenerated.png';
-
-            // 返回结果
-            return {
-              imageUrl: getComposedFileUrl(resultFileName),
-              fileName: resultFileName
-            };
-          } catch (error) {
-            log('图片合成处理失败: %O', error);
-            throw error;
+          const imageUrl = await composeImage({
+            modelFileId,
+            clothFileId,
+          });
+          if (!imageUrl) {
+            throw new Error('图片合成失败, imageUrl 为空');
           }
+          // 返回结果
+          return {
+            imageUrl,
+            fileName: basename(imageUrl)
+          };
         });
 
         return { jobId };
@@ -81,7 +83,7 @@ export const tryonRouter = router({
 
             // 返回结果
             return {
-              videoUrl: getComposedFileUrl(resultFileName),
+              videoUrl: resultFileName,
               fileName: resultFileName
             };
           } catch (error) {
