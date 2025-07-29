@@ -1,8 +1,7 @@
-import * as fs from 'node:fs';
-
 import { chromium } from 'playwright';
 import { type Page } from 'playwright';
 import { v4 as uuidv4 } from 'uuid';
+import debug from 'debug';
 
 import { retry } from '@/server/utils/proc';
 import { getUploadFilePath } from '@/libs/upload-utils'
@@ -10,6 +9,7 @@ import { saveComposedImage, getComposedFileUrl } from '@/server/services/tryon/_
 
 import { gensparkEnv } from '@/config/genspark';
 
+const log = debug('tryon:generate-image');
 const photoUploadUrl = 'https://www.genspark.ai/fashion/my_photo';
 const clothingUploadUrl = 'https://www.genspark.ai/fashion/uploadCustom?from=image_studio';
 
@@ -20,7 +20,7 @@ async function check_user(page: Page): Promise<boolean> {
   const body = await resp?.json()
 
   if (body.status != 0) {
-    console.log("未登录，需要重新登录")
+    log("未登录，需要重新登录")
     return false
   }
   return true
@@ -33,7 +33,7 @@ async function ensureLoggedIn(page: Page) {
   // }
 
   try {
-    console.log('未登录，开始登录...');
+    log('未登录，开始登录...');
     await page.goto('https://www.genspark.ai/api/login?redirect_url=%2F');
 
     await page.click("#loginWithEmailWrapper")
@@ -43,9 +43,9 @@ async function ensureLoggedIn(page: Page) {
 
     // await page.waitForTimeout(3000);
     await page.waitForURL("https://www.genspark.ai/**", { waitUntil: 'commit' })
-    console.log('登录成功，重新加载页面');
+    log('登录成功，重新加载页面');
   } catch (e) {
-    console.log('登录失败 ', e);
+    log('登录失败 ', e);
   }
 }
 
@@ -64,7 +64,7 @@ async function fetchTryonTask(page: Page, clothingPath: string) {
     }
   })
   if (!task.id) {
-    console.log("未找到对应的任务，当前任务为:", data.running_tasks)
+    log("未找到对应的任务，当前任务为:", data.running_tasks)
     return null
   }
   return task.id
@@ -73,7 +73,7 @@ async function fetchTryonTask(page: Page, clothingPath: string) {
 async function fetchTryOnResult(page: Page, clothingPath: string) {
   // // 先获取任务 id
   // const taskId = await fetchTryonTask(page, clothingPath)
-  // console.log("获取到任务:", taskId)
+  // log("获取到任务:", taskId)
 
   const url = 'https://www.genspark.ai/fashion/stylist'
   await page.goto(url)
@@ -81,14 +81,14 @@ async function fetchTryOnResult(page: Page, clothingPath: string) {
   const imgEl = await page.waitForSelector("div.image-generated > .image-grid > img", { timeout: 180000 })
   const src = await imgEl.getAttribute('src')
   if (src) {
-    console.log('获取到图片:', src)
+    log('获取到图片:', src)
     return src
   }
   return null
 }
 
 async function uploadPhoto(page: Page, photoId: string): Promise<string | null> {
-  console.log("打开模特照片上传页面")
+  log("打开模特照片上传页面")
   await page.goto(photoUploadUrl);
 
   const photoPath = await getUploadFilePath(photoId)
@@ -96,7 +96,7 @@ async function uploadPhoto(page: Page, photoId: string): Promise<string | null> 
     throw new Error("未找到照片文件: " + photoId)
   }
 
-  console.log("开始上传模特照片")
+  log("开始上传模特照片")
   return await retry(async () => {
     try {
       const previousSrc = await page.locator("img.preview-image").getAttribute('src')
@@ -107,7 +107,7 @@ async function uploadPhoto(page: Page, photoId: string): Promise<string | null> 
       ]);
 
       await fileChooser.setFiles(photoPath);
-      console.log("模特照片上传中")
+      log("模特照片上传中")
 
       const new_src = await retry(async () => {
         const src = await page.locator("img.preview-image").getAttribute("src")
@@ -118,12 +118,12 @@ async function uploadPhoto(page: Page, photoId: string): Promise<string | null> 
       }, { maxRetries: 10, backoff: 2000 })
 
       if (new_src) {
-        console.log('模特照片上传成功:', new_src);
+        log('模特照片上传成功:', new_src);
         return new_src
       }
       throw new Error("照片上传失败, new_src=", new_src)
     } catch (e) {
-      console.log('未弹出文件选择，刷新重试...', e);
+      log('未弹出文件选择，刷新重试...', e);
       // await page.waitForTimeout(5000);
       await page.reload();
       throw e
@@ -147,7 +147,7 @@ async function uploadPhoto(page: Page, photoId: string): Promise<string | null> 
 }
 
 async function uploadClothing(page: Page, clothFileId: string) {
-  console.log("开始上传服装")
+  log("开始上传服装")
   await page.goto(clothingUploadUrl);
 
   const clothingPath = await getUploadFilePath(clothFileId)
@@ -161,12 +161,12 @@ async function uploadClothing(page: Page, clothFileId: string) {
         page.waitForEvent('filechooser', { timeout: 5000 }),
         page.locator(".relative>div.cursor-pointer", { hasText: "点击上传图片" }).click(),
       ]);
-      console.log("衣服正在上传")
+      log("衣服正在上传")
       await fileChooser.setFiles(clothingPath);
 
       const imgEl = await page.waitForSelector("img[alt='uploadImageUrl']")
       const cloth_src = await imgEl.getAttribute('src')
-      console.log('衣服上传成功:', cloth_src);
+      log('衣服上传成功:', cloth_src);
 
       // // 检查按钮状态
       // await page.waitForTimeout(1000); // 等待按钮渲染
@@ -176,7 +176,7 @@ async function uploadClothing(page: Page, clothFileId: string) {
       // });
 
       // if (!buttonEnabled) {
-      //     console.log('按钮不是就续，重试...');
+      //     log('按钮不是就续，重试...');
       //     await page.reload();
       //     continue;
       // }
@@ -184,10 +184,10 @@ async function uploadClothing(page: Page, clothFileId: string) {
       // 点击按钮并等待跳转
       await page.click('.try-on-button'),
         await page.waitForURL("https://www.genspark.ai/fashion/stylist", { waitUntil: 'commit' })
-      console.log('试穿跳转成功');
+      log('试穿跳转成功');
       return cloth_src
     } catch (err) {
-      console.log('上传或跳转失败，刷新重试...', err);
+      log('上传或跳转失败，刷新重试...', err);
       await page.reload();
       throw err
     }
@@ -204,7 +204,7 @@ async function saveResultImage(page: Page, imageUrl: string): Promise<string> {
   // 生成结果文件名
   const fileName = `composed-${uuidv4()}.png`;
   const realPath = await saveComposedImage(fileName, Buffer.from(imageResp))
-  console.log('结果图片保存成功:', realPath);
+  log('结果图片保存成功:', realPath);
 
   return await getComposedFileUrl(fileName)
 }
@@ -217,9 +217,8 @@ export async function composeImage(params: {
   const browser = await chromium.launch({ headless: false }); // 设置 headless 为 false 可以看到浏览器界面
   const context = await browser.newContext();
 
+  const page = await context.newPage();
   try {
-    const page = await context.newPage();
-
     await ensureLoggedIn(page)
 
     const [model_src, cloth_src] = await Promise.all([
@@ -241,10 +240,11 @@ export async function composeImage(params: {
 
     throw new Error("试穿失败")
   } catch (error) {
-    console.log("error:", error)
+    log("error:", error)
+    await page.waitForTimeout(60000);
   } finally {
-    // console.log("closing in 5s");
-    // await page.waitForTimeout(60000);
+    // log("closing in 5s");
+    await page.close()
     await context.close();
     await browser.close();
   }
@@ -252,7 +252,7 @@ export async function composeImage(params: {
 
 // async function main() {
 //     await openUrl();
-//     console.log('流程完成 ✅');
+//     log('流程完成 ✅');
 // }
 
 // main().catch(console.error);

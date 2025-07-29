@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Card } from "@/components/ui/card"
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs"
+import { Alert, AlertTitle, AlertDescription } from "@/components/ui/alert"
 
 import { fileService } from "@/services/file"
 import { tryonService } from "@/services/tryon"
@@ -31,12 +32,16 @@ export default function ImageGenApp() {
   const [videoURL, setVideoURL] = useState<string | null>(null)
   const [isGenerating, setIsGenerating] = useState(false)
   const [isVideoGenerating, setIsVideoGenerating] = useState(false)
+  const [uploadError, setUploadError] = useState<string | null>(null)
+  const [regenerateError, setRegenerateError] = useState<string | null>(null)
+  const [videoError, setVideoError] = useState<string | null>(null)
 
   const handleUpload = async () => {
     setIsGenerating(true)
+    setUploadError(null)
 
     try {
-      // 上传模型和服装图片
+      // 上传模特和服装图片
       const [modelId, clothId] = await Promise.all([
         fileService.upload({
           name: modelImage!.name,
@@ -56,28 +61,14 @@ export default function ImageGenApp() {
       setModelFileId(modelId)
       setClothFileId(clothId)
 
-      console.log("文件上传成功，模型ID:", modelId, "服装ID:", clothId)
+      console.log("文件上传成功，模特ID:", modelId, "服装ID:", clothId)
 
       // 创建合成图片任务
-      const jobId = await tryonService.composeImage({
-        modelFileId: modelId,
-        clothFileId: clothId
-      })
-
-      console.log("创建合成图片任务成功，任务ID:", jobId)
-
-      // 轮询任务状态
-      const result = await tryonService.pollTaskStatus<{imageUrl: string; fileName: string}>(jobId, {
-        onProgress: (status) => {
-          console.log(`合成图片任务状态: ${status}`)
-        }
-      })
-
-      // 设置合成图片URL
-      setCompositeImage(result.imageUrl)
       setStep("step2")
+      await handleRegenerate()
     } catch (error) {
       console.error("上传文件或生成图片失败:", error)
+      setUploadError(error instanceof Error ? error.message : "上传文件或生成图片过程中发生错误")
     } finally {
       setIsGenerating(false)
     }
@@ -85,15 +76,16 @@ export default function ImageGenApp() {
 
   const handleRegenerate = async () => {
     if (!modelFileId || !clothFileId) {
-      console.error("缺少模型或服装文件ID")
+      console.error("缺少模特或服装文件ID")
       return
     }
 
     setIsGenerating(true)
+    setRegenerateError(null)
 
     try {
       // 调用后端API，发送modelFileId和clothFileId
-      console.log("发送重新生成请求，模型ID:", modelFileId, "服装ID:", clothFileId)
+      console.log("发送重新生成请求，模特ID:", modelFileId, "服装ID:", clothFileId)
 
       // 创建合成图片任务
       const jobId = await tryonService.composeImage({
@@ -103,6 +95,7 @@ export default function ImageGenApp() {
 
       // 轮询任务状态
       const result = await tryonService.pollTaskStatus<{imageUrl: string; fileName: string}>(jobId, {
+        timeout: 60 * 60 * 1000, // 1小时超时
         onProgress: (status) => {
           // console.log(`合成图片任务状态: ${status}`)
         }
@@ -112,6 +105,7 @@ export default function ImageGenApp() {
       setCompositeImage(result.imageUrl)
     } catch (error) {
       console.error("重新生成失败:", error)
+      setRegenerateError(error instanceof Error ? error.message : "重新生成图片过程中发生错误")
     } finally {
       setIsGenerating(false)
     }
@@ -125,6 +119,7 @@ export default function ImageGenApp() {
 
     setStep("step3")
     setIsVideoGenerating(true)
+    setVideoError(null)
 
     try {
       // 调用后端API，发送合成图片URL生成视频
@@ -138,7 +133,7 @@ export default function ImageGenApp() {
       // 轮询任务状态
       const result = await tryonService.pollTaskStatus<{videoUrl: string; fileName: string}>(jobId, {
         // 视频生成可能需要更长时间
-        timeout: 60 * 60 * 1000, // 1小时超时
+        timeout: 2 * 60 * 60 * 1000, // 2小时超时
         onProgress: (status) => {
           // console.log(`生成视频任务状态: ${status}`)
         }
@@ -148,6 +143,7 @@ export default function ImageGenApp() {
       setVideoURL(result.videoUrl)
     } catch (error) {
       console.error("生成视频失败:", error)
+      setVideoError(error instanceof Error ? error.message : "生成视频过程中发生错误")
     } finally {
       setIsVideoGenerating(false)
     }
@@ -166,7 +162,7 @@ export default function ImageGenApp() {
           <Card className="border-1 rounded-sm p-6">
             <div className="grid grid-cols-2 gap-6">
               {[
-                { label: "Model", text: '模型图片', file: modelImage, setFile: setModelImage },
+                { label: "Model", text: '模特图片', file: modelImage, setFile: setModelImage },
                 { label: "Cloth", text: '服装图片', file: clothImage, setFile: setClothImage }
               ].map(({ label, text, file, setFile }) => (
                 <div key={label} className="flex flex-col items-center justify-center py-6">
@@ -194,7 +190,7 @@ export default function ImageGenApp() {
                 </div>
               ))}
             </div>
-            <div className="flex justify-center">
+            <div className="flex flex-col items-center justify-center">
               <Button
                 className="mt-4"
                 disabled={!modelImage || !clothImage || isGenerating}
@@ -202,6 +198,13 @@ export default function ImageGenApp() {
               >
                 {isGenerating ? "正在生成..." : "生成换装"}
               </Button>
+
+              {uploadError && (
+                <Alert variant="destructive" className="mt-4 max-w-md">
+                  <AlertTitle>生成图片失败</AlertTitle>
+                  <AlertDescription>{uploadError}</AlertDescription>
+                </Alert>
+              )}
             </div>
           </Card>
         </TabsContent>
@@ -219,16 +222,25 @@ export default function ImageGenApp() {
                 />
               )}
             </div>
-            <div className="flex flex-col md:flex-row justify-center gap-4">
-              <Button variant="default" onClick={handleRegenerate} disabled={isGenerating}>
-                {isGenerating ? "正在生成..." : "重新换装"}
-              </Button>
-              {/* <Button variant="destructive" onClick={() => setStep("step1")} disabled={isGenerating}>
-                上一步
-              </Button> */}
-              <Button variant="destructive" onClick={handleGenerateVideo} disabled={isVideoGenerating}>
-                {isVideoGenerating ? "正在生成..." : "生成视频"}
-              </Button>
+            <div className="flex flex-col items-center justify-center">
+              <div className="flex flex-col md:flex-row justify-center gap-4">
+                <Button variant="default" onClick={handleRegenerate} disabled={isGenerating}>
+                  {isGenerating ? "正在生成..." : "重新换装"}
+                </Button>
+                {/* <Button variant="destructive" onClick={() => setStep("step1")} disabled={isGenerating}>
+                  上一步
+                </Button> */}
+                <Button variant="destructive" onClick={handleGenerateVideo} disabled={isVideoGenerating}>
+                  {isVideoGenerating ? "正在生成..." : "生成视频"}
+                </Button>
+              </div>
+
+              {regenerateError && (
+                <Alert variant="destructive" className="mt-4 max-w-md">
+                  <AlertTitle>重新生成图片失败</AlertTitle>
+                  <AlertDescription>{regenerateError}</AlertDescription>
+                </Alert>
+              )}
             </div>
           </Card>
         </TabsContent>
@@ -264,16 +276,25 @@ export default function ImageGenApp() {
                 </div>
               )}
             </div>
-            <div className="flex justify-center gap-4 flex-wrap">
-              <Button variant="destructive" onClick={handleGenerateVideo} disabled={isVideoGenerating}>
-                {isVideoGenerating ? "正在生成..." : "重新生成视频"}
-              </Button>
-              {videoURL && (
-                <Button variant="secondary" asChild>
-                  <a href={videoURL} download>
-                    下载视频
-                  </a>
+            <div className="flex flex-col items-center justify-center">
+              <div className="flex justify-center gap-4 flex-wrap">
+                <Button variant="destructive" onClick={handleGenerateVideo} disabled={isVideoGenerating}>
+                  {isVideoGenerating ? "正在生成..." : "重新生成视频"}
                 </Button>
+                {videoURL && (
+                  <Button variant="secondary" asChild>
+                    <a href={videoURL} download>
+                      下载视频
+                    </a>
+                  </Button>
+                )}
+              </div>
+
+              {videoError && (
+                <Alert variant="destructive" className="mt-4 max-w-md">
+                  <AlertTitle>生成视频失败</AlertTitle>
+                  <AlertDescription>{videoError}</AlertDescription>
+                </Alert>
               )}
             </div>
           </Card>

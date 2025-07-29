@@ -1,10 +1,8 @@
 import debug from 'debug';
-import * as fs from 'node:fs';
 
 import { TRPCError } from '@trpc/server';
 import { z } from 'zod';
-import { join,basename } from 'path';
-import { v4 as uuidv4 } from 'uuid';
+import { basename } from 'path';
 import { authedProcedure, router } from '@/libs/trpc/lambda';
 import { createJob, getJob } from '@/libs/trpc/task-manager';
 
@@ -123,5 +121,42 @@ export const tryonRouter = router({
       }
 
       return job;
+    }),
+
+  subscribeTaskStatus: authedProcedure
+    .input(
+      z.object({
+        jobId: z.string(),
+      }),
+    )
+    .subscription(async function* ({ input }) {
+      const { jobId } = input;
+
+      // 检查任务是否存在
+      let job = getJob(jobId);
+      if (!job) {
+        throw new TRPCError({
+          code: 'NOT_FOUND',
+          message: '任务不存在'
+        });
+      }
+
+      // 立即发送当前状态
+      yield job;
+
+      // 定时检查任务状态变化
+      while (job.status !== 'completed' && job.status !== 'failed') {
+        await new Promise(resolve => setTimeout(resolve, 1000));
+
+        job = getJob(jobId);
+        if (!job) {
+          throw new TRPCError({
+            code: 'NOT_FOUND',
+            message: '任务不存在'
+          });
+        }
+
+        yield job;
+      }
     }),
 });

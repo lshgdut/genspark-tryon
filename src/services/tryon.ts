@@ -1,4 +1,6 @@
 import { lambdaClient } from '@/libs/trpc/client';
+import { Observable } from '@trpc/server/observable';
+import { resolve } from 'path';
 
 type JobId = string;
 type TaskStatus = 'pending' | 'running' | 'completed' | 'failed';
@@ -26,6 +28,8 @@ export interface ITryonService {
     timeout?: number;
     onProgress?: (status: TaskStatus) => void;
   }): Promise<T>;
+
+  subscribeTaskStatus(jobId: string): Promise<TaskResult>;
 }
 
 export class TryonService implements ITryonService {
@@ -88,6 +92,33 @@ export class TryonService implements ITryonService {
 
       // 开始轮询
       checkStatus();
+    });
+  };
+
+  subscribeTaskStatus: ITryonService['subscribeTaskStatus'] = async (jobId) => {
+
+    return new Promise<TaskResult>((resolve, reject) => {
+      let result: TaskResult
+      lambdaClient.tryon.subscribeTaskStatus.subscribe({ jobId }, {
+        onData: (value) => {
+          // resolve(value);
+          console.log('sub',value)
+          result = value;
+        },
+        onComplete: () => {
+          // console.log("")
+          resolve({
+            status: "completed",
+            result: result
+          });
+        },
+        onError: (error) => {
+          reject({
+            status: "error",
+            error: error.message,
+          });
+        }
+      });
     });
   };
 }
