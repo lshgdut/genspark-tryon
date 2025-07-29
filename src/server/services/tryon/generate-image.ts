@@ -5,14 +5,15 @@ import debug from 'debug';
 
 import { retry } from '@/server/utils/proc';
 import { getUploadFilePath } from '@/libs/upload-utils'
-import { saveComposedImage, getComposedFileUrl } from '@/server/services/tryon/_utils';
+import { saveComposedFile, getComposedFileUrl } from './_utils';
 
 import { gensparkEnv } from '@/config/genspark';
+import { ITryonProgess, ITryonCompositedFile } from '@/types/tryon';
 
 const log = debug('tryon:generate-image');
+
 const photoUploadUrl = 'https://www.genspark.ai/fashion/my_photo';
 const clothingUploadUrl = 'https://www.genspark.ai/fashion/uploadCustom?from=image_studio';
-import { ITryonProgess, ITryonCompositedFile } from '@/types/tryon';
 
 async function check_user(page: Page): Promise<boolean> {
   const url = 'https://www.genspark.ai/api/user'
@@ -207,7 +208,7 @@ async function saveResultImage(page: Page, imageUrl: string): Promise<ITryonComp
   // 生成结果文件名
   // TODO 可能不是 png 文件
   const fileName = `${uuidv4()}.png`;
-  const realPath = await saveComposedImage(fileName, Buffer.from(imageResp))
+  const realPath = await saveComposedFile(fileName, Buffer.from(imageResp))
   log('结果图片保存成功:', realPath);
 
   const fileUrl = await getComposedFileUrl(fileName)
@@ -290,13 +291,13 @@ export async function* composeImage(params: {
       yield {
         stage: (stage = 'done'),
         status: 'failed',
-        progress: 100,
+        // progress: 100,
         message: '换装失败！',
         error: '无法获取结果图片'
       }
     }
   } catch (error: any) {
-    log("error:", error)
+    log("composite image error:", error)
     yield {
       stage: stage,
       status: 'failed',

@@ -43,8 +43,11 @@ export function getComposedFileUrl(fileName: string): string {
   return `${appEnv.APP_URL || ''}/composited/${fileName}`;
 }
 
+export function getComposedFilePath(fileName: string): string {
+  return join(getComposedDirectory(), fileName);
+}
 
-export async function saveComposedImage(fileName: string, data: Buffer): Promise<string> {
+export async function saveComposedFile(fileName: string, data: Buffer): Promise<string> {
   const fileDir = await ensureComposedDirectory();
   const filePath = join(fileDir, fileName);
   await fs.writeFile(filePath, data);
