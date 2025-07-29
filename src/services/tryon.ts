@@ -1,6 +1,4 @@
 import { lambdaClient } from '@/libs/trpc/client';
-import { Observable } from '@trpc/server/observable';
-import { resolve } from 'path';
 
 type JobId = string;
 type TaskStatus = 'pending' | 'running' | 'completed' | 'failed';
@@ -50,8 +48,8 @@ export class TryonService implements ITryonService {
 
   pollTaskStatus: ITryonService['pollTaskStatus'] = async (jobId, options = {}) => {
     const {
-      interval = 1000,  // 默认轮询间隔1秒
-      timeout = 60 * 1000,  // 默认超时时间1分钟
+      interval = 3000,  // 默认轮询间隔3秒
+      timeout = 60 * 60 * 1000,  // 默认超时时间1小时
       onProgress
     } = options;
 

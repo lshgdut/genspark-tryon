@@ -43,7 +43,7 @@ next-env.d.ts
 
 # uploads
 /.tmp
-/public/composed
+/public/composited
 
 # env files
 .env

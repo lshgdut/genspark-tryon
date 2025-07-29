@@ -41,11 +41,6 @@ export default function ImageGenApp() {
   const [regenerateError, setRegenerateError] = useState<string | null>(null)
   const [videoError, setVideoError] = useState<string | null>(null)
 
-
-  // useEffect(()=>{
-  //   setStep("step2")
-  //   setIsGenerating(true)
-  // },[])
   const handleUpload = async () => {
     setIsGenerating(true)
     setUploadError(null)
@@ -110,13 +105,12 @@ export default function ImageGenApp() {
       })
 
       // 轮询任务状态
-      // const result = await tryonService.pollTaskStatus<{imageUrl: string; fileName: string}>(jobId, {
-      //   timeout: 60 * 60 * 1000, // 1小时超时
-      //   onProgress: (status) => {
-      //     // console.log(`合成图片任务状态: ${status}`)
-      //   }
-      // })
-      const imageUrl = await tryonService.pollTaskStatus<string>(jobId)
+      const {imageUrl} = await tryonService.pollTaskStatus<{imageUrl: string}>(jobId, {
+        timeout: 60 * 60 * 1000, // 1小时超时
+        onProgress: (status) => {
+          // console.log(`合成图片任务状态: ${status}`)
+        }
+      })
 
           // 设置合成图片URL
       setCompositeImage(imageUrl)
@@ -229,7 +223,7 @@ export default function ImageGenApp() {
         <TabsContent value="step2">
           <Card className="border-1 rounded-sm p-6">
             <div className="flex justify-center">
-              {compositeImage && (
+              {!isGenerating && compositeImage && (
                 <Image
                   src={compositeImage}
                   alt="composite"
@@ -246,12 +240,12 @@ export default function ImageGenApp() {
             <div className="flex flex-col items-center justify-center">
               <div className="flex flex-col md:flex-row justify-center gap-4">
                 <Button variant="default" onClick={() => handleRegenerate()} disabled={isGenerating}>
-                  {isGenerating ? "正在生成..." : "重新换装"}
+                  {isGenerating ? "正在生成..." : "重新生成换装"}
                 </Button>
                 {/* <Button variant="destructive" onClick={() => setStep("step1")} disabled={isGenerating}>
                   上一步
                 </Button> */}
-                <Button variant="destructive" onClick={handleGenerateVideo} disabled={isVideoGenerating}>
+                <Button variant="destructive" onClick={handleGenerateVideo} disabled={!compositeImage || isGenerating || isVideoGenerating}>
                   {isVideoGenerating ? "正在生成..." : "生成视频"}
                 </Button>
               </div>

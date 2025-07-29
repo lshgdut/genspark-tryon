@@ -78,7 +78,9 @@ async function fetchTryOnResult(page: Page, clothingPath: string) {
   const url = 'https://www.genspark.ai/fashion/stylist'
   await page.goto(url)
 
-  const imgEl = await page.waitForSelector("div.image-generated > .image-grid > img", { timeout: 180000 })
+  // TODO 从 remixing-progress获取进度信息
+  // TODO 可能有多个image-generated
+  const imgEl = await page.waitForSelector("div.image-generated > .image-grid > img", { timeout: 30 * 60 * 1000 })
   const src = await imgEl.getAttribute('src')
   if (src) {
     log('获取到图片:', src)
@@ -89,7 +91,7 @@ async function fetchTryOnResult(page: Page, clothingPath: string) {
 
 async function uploadPhoto(page: Page, photoId: string): Promise<string | null> {
   log("打开模特照片上传页面")
-  await page.goto(photoUploadUrl);
+  await page.goto(photoUploadUrl, {waitUntil: 'domcontentloaded'});
 
   const photoPath = await getUploadFilePath(photoId)
   if (!photoPath) {
@@ -197,51 +199,109 @@ async function uploadClothing(page: Page, clothFileId: string) {
 async function saveResultImage(page: Page, imageUrl: string): Promise<string> {
   const imageResp = await page.evaluate(async (url: string) => {
     const res = await fetch(url);
+    console.log(res.headers.get("content-type"))
     const buf = await res.arrayBuffer();
     return Array.from(new Uint8Array(buf));
   }, imageUrl);
 
   // 生成结果文件名
-  const fileName = `composed-${uuidv4()}.png`;
+  // TODO 可能不是 png 文件
+  const fileName = `${uuidv4()}.png`;
   const realPath = await saveComposedImage(fileName, Buffer.from(imageResp))
   log('结果图片保存成功:', realPath);
 
   return await getComposedFileUrl(fileName)
 }
 
+import { ITryonProgess } from '@/types/tryon';
+
 // https://www.genspark.ai/fashion/target?id=60f3dd9fe107ad62fde489b7a525bed6&pr=1&from=tryon
-export async function composeImage(params: {
+export async function* composeImage(params: {
   modelFileId: string;
   clothFileId: string;
-}) {
+}) : AsyncGenerator<ITryonProgess<string>> {
   const browser = await chromium.launch({ headless: false }); // 设置 headless 为 false 可以看到浏览器界面
   const context = await browser.newContext();
 
+  let stage: ITryonProgess<string>['stage'] = 'initial';
+
   const page = await context.newPage();
   try {
+    yield {
+      stage: stage,
+      status: 'running',
+      progress: 0,
+      message: '正在准备模型...'
+    }
+
     await ensureLoggedIn(page)
 
-    const [model_src, cloth_src] = await Promise.all([
-      uploadPhoto(page, params.modelFileId),
-      uploadClothing(page, params.clothFileId)
-    ]);
-
+    yield {
+      stage: (stage = 'model_composing'),
+      status: 'running',
+      progress:  10,
+      message: '正在处理模特照片...'
+    }
+    const model_src = await uploadPhoto(page, params.modelFileId)
     if (!model_src) {
       throw new Error("模特照片上传失败");
     }
+
+
+    yield {
+      stage: (stage = 'cloth_composing'),
+      status: 'running',
+      progress: 20,
+      message: '正在处理服装照片...'
+    }
+    const cloth_src = await uploadClothing(page, params.clothFileId)
     if (!cloth_src) {
       throw new Error("服装照片上传失败");
     }
 
+    yield {
+      stage: (stage = 'image_generating'),
+      status: 'running',
+      progress: 40,
+      message: '正在合成换装图片...'
+    }
     const img = await fetchTryOnResult(page, cloth_src);
     if (img) {
-      return await saveResultImage(page, img)
+      yield {
+        stage: (stage = 'image_saving'),
+        status: 'running',
+        progress: 90,
+        message: '正在保存换装图片...'
+      }
+      const imageFilepath = await saveResultImage(page, img)
+      yield {
+        stage: (stage = 'done'),
+        status: 'completed',
+        progress: 100,
+        message: '换装成功！',
+        result: imageFilepath
+      }
     }
-
-    throw new Error("试穿失败")
-  } catch (error) {
+    else {
+      yield {
+        stage: (stage = 'done'),
+        status: 'failed',
+        progress: 100,
+        message: '换装失败！',
+        error: '无法获取结果图片'
+      }
+    }
+  } catch (error: any) {
     log("error:", error)
-    await page.waitForTimeout(60000);
+    yield {
+      stage: stage,
+      status: 'failed',
+      progress: 100,
+      message: error.message
+    }
+    if (process.env.NODE_ENV === 'development') {
+      await page.waitForTimeout(60000);
+    }
   } finally {
     // log("closing in 5s");
     await page.close()
@@ -250,9 +310,21 @@ export async function composeImage(params: {
   }
 }
 
+// import { sleep } from '@/server/utils/proc';
+// async function* run() {
+//   await sleep(1000);
+//   yield { status: "running" }
+//   await sleep(1000);
+//   yield { status: "completed"}
+// }
+
 // async function main() {
-//     await openUrl();
-//     log('流程完成 ✅');
+//   for await (const progress of composeImage({
+//     modelFileId: '335200fe-554c-4294-a6de-842b2aeaddb0.jpg',
+//     clothFileId:'4df53e08-cb46-40b1-9a5e-92b32ed4dd4c.webp'})
+//   ) {
+//       console.log(progress);
+//     }
 // }
 
 // main().catch(console.error);

@@ -30,12 +30,20 @@ export const tryonRouter = router({
           // 模拟AI处理过程
           // await new Promise((resolve) => setTimeout(resolve, 3000));
 
-          const imageUrl = await composeImage({
-            modelFileId,
-            clothFileId,
-          });
+          let imageUrl
+          for await (const progress of composeImage({ modelFileId, clothFileId })) {
+            log(`合成图片进度: ${progress.progress}%, 状态: ${progress.status}`);
+            if (progress.status === 'completed') {
+              imageUrl = progress.result
+              break;
+            }
+            if (progress.status === 'failed') {
+              console.log(`合成图片失败: ${progress.error}`);
+              break
+            }
+          }
           if (!imageUrl) {
-            throw new Error('图片合成失败, imageUrl 为空');
+            throw new Error('图片合成失败, 无法获取合成图片地址');
           }
           // 返回结果
           return {
