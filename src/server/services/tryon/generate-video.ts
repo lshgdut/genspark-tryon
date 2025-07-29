@@ -283,14 +283,13 @@ export async function* compositeVideo({fileId}: {fileId: string}): AsyncGenerato
   }
 }
 
+// async function main() {
+//   for await (const progress of compositeVideo({
+//     fileId: 'e7f49a77-4fa5-40c9-a3da-43a411b7fc55.png'
+//   })
+//   ) {
+//       console.log(progress);
+//     }
+// }
 
-async function main() {
-  for await (const progress of compositeVideo({
-    fileId: 'e7f49a77-4fa5-40c9-a3da-43a411b7fc55.png'
-  })
-  ) {
-      console.log(progress);
-    }
-}
-
-main().catch(console.error);
+// main().catch(console.error);

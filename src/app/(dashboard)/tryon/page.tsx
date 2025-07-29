@@ -132,6 +132,7 @@ export default function ImageGenApp() {
     setStep("step3")
     setIsVideoGenerating(true)
     setVideoError(null)
+    setCompositeVideo(null)
 
     try {
       // 调用后端API，发送合成图片URL生成视频
@@ -268,7 +269,7 @@ export default function ImageGenApp() {
                 <div className="relative">
                   {isVideoGenerating && !compositeVideo ? (
                     <div className="w-[400px] h-[300px] flex items-center justify-center bg-muted text-sm text-muted-foreground">
-                      Generating Video...
+                      正在生成换装视频...
                     </div>
                   ) : compositeVideo ? (
                     <video
@@ -294,10 +295,10 @@ export default function ImageGenApp() {
             </div>
             <div className="flex flex-col items-center justify-center">
               <div className="flex justify-center gap-4 flex-wrap">
-                <Button variant="destructive" onClick={handleGenerateVideo} disabled={isVideoGenerating}>
+                <Button variant="destructive" onClick={handleGenerateVideo} disabled={!compositeImage || isVideoGenerating}>
                   {isVideoGenerating ? "正在生成..." : "重新生成视频"}
                 </Button>
-                {compositeVideo && (
+                {!isVideoGenerating && compositeVideo && (
                   <Button variant="secondary" asChild>
                     <a href={compositeVideo.fileUrl} download>
                       下载视频

@@ -221,7 +221,7 @@ async function saveResultImage(page: Page, imageUrl: string): Promise<ITryonComp
 
 
 // https://www.genspark.ai/fashion/target?id=60f3dd9fe107ad62fde489b7a525bed6&pr=1&from=tryon
-export async function* composeImage(params: {
+export async function* compositeImage(params: {
   modelFileId: string;
   clothFileId: string;
 }): AsyncGenerator<ITryonProgess<ITryonCompositedFile>> {
