@@ -1,0 +1,39 @@
+name: genspark-tryon
+services:
+  network-service:
+    image: alpine
+    container_name: tryon-network
+    restart: always
+    ports:
+      - '3456:80'
+    command: tail -f /dev/null
+    networks:
+      - tryon-network
+
+  nginx:
+    image: nginx:1.28-alpine
+    container_name: tryon-nginx
+    network_mode: 'service:network-service'
+    volumes:
+      - './nginx/templates:/etc/nginx/templates'
+      - './public/composited:/data/composited'
+    env_file:
+      - .env
+    restart: always
+
+  lobe:
+    image: genspark:v1
+    container_name: tryon
+    network_mode: 'service:network-service'
+    environment:
+      - 'PORT=3000'
+    volumes:
+      - './public/composited:/app/public/composited'
+    env_file:
+      - .env
+    restart: always
+
+networks:
+  tryon-network:
+    driver: bridge
+
