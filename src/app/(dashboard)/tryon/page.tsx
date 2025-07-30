@@ -42,13 +42,6 @@ export default function ImageGenApp() {
   const [regenerateError, setRegenerateError] = useState<string | null>(null)
   const [videoError, setVideoError] = useState<string | null>(null)
 
-  // useEffect(()=>{
-  //   setStep('step2')
-  //   setCompositeImage({
-  //     fileUrl: 'http://localhost:3000/composited/6ae156cd-796b-4f23-9a59-d0ece334b1ea.png',
-  //     fileId: '6ae156cd-796b-4f23-9a59-d0ece334b1ea.png',
-  //   })
-  // },[])
   const handleUpload = async () => {
     setIsGenerating(true)
     setUploadError(null)
@@ -244,7 +237,7 @@ export default function ImageGenApp() {
                   unoptimized
                 />
               )}
-              {!isGenerating && <div className="relative mb-4 object-cover h-[300px]">
+              {isGenerating && <div className="relative mb-4 object-cover h-[300px]">
                   <Spinner/>
                 </div>
               }
