@@ -42,6 +42,13 @@ export default function ImageGenApp() {
   const [regenerateError, setRegenerateError] = useState<string | null>(null)
   const [videoError, setVideoError] = useState<string | null>(null)
 
+  // useEffect(()=>{
+  //   setStep('step2')
+  //   setCompositeImage({
+  //     fileUrl: 'http://localhost:3000/composited/6ae156cd-796b-4f23-9a59-d0ece334b1ea.png',
+  //     fileId: '6ae156cd-796b-4f23-9a59-d0ece334b1ea.png',
+  //   })
+  // },[])
   const handleUpload = async () => {
     setIsGenerating(true)
     setUploadError(null)
@@ -108,9 +115,9 @@ export default function ImageGenApp() {
       // 轮询任务状态
       const compositeImageFile = await tryonService.pollTaskStatus<ITryonCompositedFile>(jobId, {
         timeout: 60 * 60 * 1000, // 1小时超时
-        onProgress: (status) => {
-          // console.log(`合成图片任务状态: ${status}`)
-        }
+        // onProgress: (status) => {
+        //   // console.log(`合成图片任务状态: ${status}`)
+        // }
       })
 
           // 设置合成图片URL
@@ -147,9 +154,9 @@ export default function ImageGenApp() {
       const result = await tryonService.pollTaskStatus<ITryonCompositedFile>(jobId, {
         // 视频生成可能需要更长时间
         timeout: 2 * 60 * 60 * 1000, // 2小时超时
-        onProgress: (status) => {
-          // log(`生成视频任务状态: ${status}`)
-        }
+        // onProgress: (status) => {
+        //   // log(`生成视频任务状态: ${status}`)
+        // }
       })
 
       // 设置视频URL
@@ -171,6 +178,7 @@ export default function ImageGenApp() {
           <TabsTrigger value="step3" disabled={!compositeImage}>3 生成视频</TabsTrigger>
         </TabsList>
 
+        {/* step 1 */}
         <TabsContent value="step1">
           <Card className="border-1 rounded-sm p-6">
             <div className="grid grid-cols-2 gap-6">
@@ -229,12 +237,12 @@ export default function ImageGenApp() {
                 <Image
                   src={compositeImage?.fileUrl}
                   alt="composite"
-                  width={400}
-                  height={300}
+                  width={200}
+                  height={150}
                   className="mb-4 object-cover"
                 />
               )}
-              {isGenerating && <div className="relative mb-4 object-cover h-[300px]">
+              {!isGenerating && <div className="relative mb-4 object-cover h-[300px]">
                   <Spinner/>
                 </div>
               }
@@ -247,8 +255,8 @@ export default function ImageGenApp() {
                 {/* <Button variant="destructive" onClick={() => setStep("step1")} disabled={isGenerating}>
                   上一步
                 </Button> */}
-                <Button variant="destructive" onClick={handleGenerateVideo} disabled={!compositeImage || isGenerating || isVideoGenerating}>
-                  {isVideoGenerating ? "正在生成..." : "生成视频"}
+                <Button variant="destructive" onClick={() => {setStep("step3")}} disabled={!compositeImage || isGenerating || isVideoGenerating}>
+                  下一步
                 </Button>
               </div>
 
@@ -273,8 +281,8 @@ export default function ImageGenApp() {
                     </div>
                   ) : compositeVideo ? (
                     <video
-                      width={400}
-                      height={300}
+                      width={200}
+                      height={150}
                       controls
                       className="mb-4"
                     >
@@ -285,8 +293,8 @@ export default function ImageGenApp() {
                     <Image
                       src={compositeImage?.fileUrl}
                       alt="composite-bg"
-                      width={400}
-                      height={300}
+                      width={200}
+                      height={150}
                       className="mb-4 blur-sm"
                     />
                   )}

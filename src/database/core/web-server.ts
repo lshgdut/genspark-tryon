@@ -10,7 +10,7 @@ import * as schema from '@/database/schemas';
 import { TryonDatabase } from '../type';
 
 export const getDBInstance = (): TryonDatabase => {
-  if (!isServerMode) return {} as any;
+  if (!isServerMode) return {} as TryonDatabase;
 
   if (!serverDBEnv.KEY_VAULTS_SECRET) {
     throw new Error(
@@ -21,7 +21,7 @@ If you don't have it, please run \`openssl rand -base64 32\` to create one.
     );
   }
 
-  let connectionString = serverDBEnv.DATABASE_URL;
+  const connectionString = serverDBEnv.DATABASE_URL;
 
   if (!connectionString) {
     throw new Error(`You are try to use database, but "DATABASE_URL" is not set correctly`);

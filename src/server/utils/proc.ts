@@ -6,7 +6,7 @@ export const sleep = async (ms: number) => {
   return new Promise(resolve => setTimeout(resolve, ms));
 }
 
-export const retry = async (callback: Function, { maxRetries = 3, backoff = 1000 } = {}) => {
+export const retry = async <T>(callback: ()=>T, { maxRetries = 3, backoff = 1000 } = {}) => {
   let retries = 0;
   while (retries < maxRetries) {
     try {
@@ -14,7 +14,7 @@ export const retry = async (callback: Function, { maxRetries = 3, backoff = 1000
     } catch (e) {
       retries++;
       await sleep(backoff);
-      log(`重试第 ${retries} 次`);
+      log(`重试第 ${retries} 次, ${(e as Error).message}`);
     }
   }
   throw new Error(`重试失败，已尝试 ${maxRetries} 次`);

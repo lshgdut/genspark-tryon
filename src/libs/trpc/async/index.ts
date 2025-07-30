@@ -11,6 +11,7 @@ export const publicProcedure = asyncTrpc.procedure;
 
 export const asyncRouter = asyncTrpc.router;
 
+// @ts-ignore
 const dbMiddleware = asyncTrpc.middleware(async (opts:any) => {
   log('Database middleware called');
 

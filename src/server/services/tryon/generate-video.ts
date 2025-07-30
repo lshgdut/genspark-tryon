@@ -3,48 +3,19 @@ import { type Page, type Locator } from 'playwright';
 
 import { v4 as uuidv4 } from 'uuid';
 import debug from 'debug';
-import { gensparkEnv } from '@/config/genspark';
+
 import { ITryonProgess, ITryonCompositedFile } from '@/types/tryon';
-import { saveComposedFile, getComposedFileUrl, getComposedFilePath } from './_utils';
+import {
+  saveComposedFile,
+  getComposedFileUrl,
+  getComposedFilePath,
+  pw_ensureLoggedIn,
+} from './_utils';
+
 
 const log = debug('tryon:generate-video');
 
 const videoPageUrl = 'https://www.genspark.ai/agents?type=moa_generate_video';
-
-async function check_user(page: Page): Promise<boolean> {
-  const url = 'https://www.genspark.ai/api/user'
-  const resp = await page.goto(url)
-  const body = await resp?.json()
-
-  if (body.status != 0) {
-    log("未登录，需要重新登录")
-    return false
-  }
-  return true
-}
-
-async function ensureLoggedIn(page: Page) {
-  // 必然没登录，先不校验
-  // if (await check_user(page)) {
-  //     return
-  // }
-
-  try {
-    log('未登录，开始登录...');
-    await page.goto('https://www.genspark.ai/api/login?redirect_url=%2F');
-
-    await page.click("#loginWithEmailWrapper")
-    await page.locator('#email').fill(gensparkEnv.EMAIL);
-    await page.locator('input[type="password"]').fill(gensparkEnv.PASSWORD);
-    await page.click('button[type="submit"]')
-
-    // await page.waitForTimeout(3000);
-    await page.waitForURL("https://www.genspark.ai/**", { waitUntil: 'commit' })
-    log('登录成功，重新加载页面');
-  } catch (e) {
-    log('登录失败 ', e);
-  }
-}
 
 async function chooseModel(page: Page) {
   const model = 'Kling V1.6 Pro'
@@ -122,10 +93,21 @@ async function postVideoCreated(page: Page, onProgress?: (progress: number) => v
   await page.waitForTimeout(1000)
 
   // await page.waitForSelector("div.generated-videos")
-  let progressEl: Locator, progress: string
+  let progressEl, progress: string = ''
   do {
     try {
-      progressEl = page.locator("div.generated-videos .generating-progress .progress-text")
+      progressEl = await page.$("div.generated-videos .generating-progress .progress-text")
+      if (!progressEl) {
+        if (progress) {
+          log("视频生成成功...")
+          break
+        }
+        else {
+          log("准备生成视频...")
+          await page.waitForTimeout(3000)
+          continue
+        }
+      }
       progress = await progressEl.textContent() || ''
       try {
         onProgress?.(parseInt(progress.replace("%", ""), 10) / 100)
@@ -137,17 +119,17 @@ async function postVideoCreated(page: Page, onProgress?: (progress: number) => v
         if (progress === "100%") {
           break
         }
-        await page.waitForTimeout(1000)
+        await page.waitForTimeout(3000)
       }
     } catch (error) {
-      log("视频生成完成...")
+      log("视频生成失败...")
       // TODO
       /**
           TimeoutError: content: Timeout 30000ms exceeded.
           Call log:
           - waiting for locator('div.generated-videos .generating-progress .progress-text')
        */
-      break
+      throw error
     }
   } while (true)
 
@@ -184,8 +166,17 @@ async function saveVideoGenerated(page: Page, videoUrl: string) {
 
 // https://www.genspark.ai/fashion/target?id=60f3dd9fe107ad62fde489b7a525bed6&pr=1&from=tryon
 export async function* compositeVideo({fileId}: {fileId: string}): AsyncGenerator<ITryonProgess<ITryonCompositedFile>> {
-  const browser = await chromium.launch({ headless: false }); // 设置 headless 为 false 可以看到浏览器界面
-  const context = await browser.newContext();
+  const browser = await chromium.launch({
+    headless: true,
+    args: [
+      '--disable-blink-features=AutomationControlled', // 尝试规避自动化检测
+    ]
+  }); // 设置 headless 为 false 可以看到浏览器界面
+
+  const context = await browser.newContext({
+    viewport: { width: 1920, height: 1080 },
+    userAgent: 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/138.0.0.0 Safari/537.36'
+  });
 
   const page = await context.newPage();
 
@@ -199,7 +190,7 @@ export async function* compositeVideo({fileId}: {fileId: string}): AsyncGenerato
       message: '正在准备模型...'
     }
 
-    await ensureLoggedIn(page)
+    await pw_ensureLoggedIn(page)
 
     log("打开页面:", videoPageUrl)
     await page.goto(videoPageUrl, { waitUntil: "domcontentloaded" })
@@ -283,13 +274,13 @@ export async function* compositeVideo({fileId}: {fileId: string}): AsyncGenerato
   }
 }
 
-// async function main() {
-//   for await (const progress of compositeVideo({
-//     fileId: 'e7f49a77-4fa5-40c9-a3da-43a411b7fc55.png'
-//   })
-//   ) {
-//       console.log(progress);
-//     }
-// }
+async function main() {
+  for await (const progress of compositeVideo({
+    fileId: 'e7f49a77-4fa5-40c9-a3da-43a411b7fc55.png'
+  })
+  ) {
+      console.log(progress);
+    }
+}
 
-// main().catch(console.error);
+main().catch(console.error);

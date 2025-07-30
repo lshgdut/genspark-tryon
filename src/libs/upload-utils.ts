@@ -39,7 +39,7 @@ export async function getUploadFilePath(fileName: string): Promise<string | null
     await access(filePath);
 
     return filePath;
-  } catch (error) {
+  } catch {
     return null;
   }
 }

@@ -20,10 +20,10 @@ export const jobRouter = router({
       z.object({ inputData: z.string() }),
     )
     .mutation(async ({ ctx, input }) => {
-      const jobId = createJob(async () => {
+      const jobId = createJob<string>(async () => {
         // 模拟异步任务，例如下载、API 调用等
         await new Promise((r) => setTimeout(r, 3000));
-        return jobId;
+        return "123";
       });
 
       return { jobId };

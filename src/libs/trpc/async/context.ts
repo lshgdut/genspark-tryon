@@ -1,9 +1,11 @@
 import debug from 'debug';
 import { NextRequest } from 'next/server';
 
-import { JWTPayload, TRY_ON_AUTH_HEADER } from '@/const/auth';
+import { JWTPayload,
+  // TRY_ON_AUTH_HEADER
+} from '@/const/auth';
 import { TryonDatabase } from '@/database/type';
-import { KeyVaultsGateKeeper } from '@/server/modules/KeyVaultsEncrypt';
+// import { KeyVaultsGateKeeper } from '@/server/modules/KeyVaultsEncrypt';
 
 const log = debug('lobe-async:context');
 
@@ -30,6 +32,7 @@ export const createAsyncContextInner = async (params?: {
 
 export type AsyncContext = Awaited<ReturnType<typeof createAsyncContextInner>>;
 
+// @ts-ignore
 export const createAsyncRouteContext = async (request: NextRequest): Promise<AsyncContext> => {
   // for API-response caching see https://trpc.io/docs/v11/caching
 

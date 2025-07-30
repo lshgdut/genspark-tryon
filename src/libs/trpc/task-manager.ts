@@ -1,16 +1,16 @@
 // lib/taskManager.ts
 type JobStatus = 'pending' | 'running' | 'completed' | 'failed';
 
-interface Job {
+interface Job<T> {
     id: string;
     status: JobStatus;
-    result?: any;
+    result?: T;
     error?: string;
 }
 
-const jobStore = new Map<string, Job>();
+const jobStore = new Map<string, Job<unknown>>();
 
-export function createJob(task: () => Promise<any>): string {
+export function createJob<T>(task: () => Promise<T>): string {
     const jobId = crypto.randomUUID();
     jobStore.set(jobId, {id: jobId, status: 'pending' });
 
@@ -28,6 +28,6 @@ export function createJob(task: () => Promise<any>): string {
     return jobId;
 }
 
-export function getJob(jobId: string): Job | undefined {
-    return jobStore.get(jobId);
+export function getJob<T>(jobId: string): Job<T> | undefined {
+    return jobStore.get(jobId) as Job<T>;
 }

@@ -90,6 +90,7 @@ export const createAsyncCaller = async (
   // http client 调用方式是 client.a.b.mutate(), 我希望统一成 caller.a.b() 的调用方式
   else {
     const httpClient = await createAsyncServerClient(userId, jwtPayload);
+
     const createRecursiveProxy = (client: any, path: string[]): any => {
       // The target is a dummy function, so that 'apply' can be triggered.
       return new Proxy(() => {}, {

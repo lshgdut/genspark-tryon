@@ -84,7 +84,7 @@ export const createLambdaContext = async (request: NextRequest): Promise<LambdaC
   };
   // log('LobeChat Authorization header: %s', authorization ? 'exists' : 'not found');
 
-  let userId = 'admin';
+  const userId = 'admin';
   // let auth;
 
   // if (enableNextAuth) {

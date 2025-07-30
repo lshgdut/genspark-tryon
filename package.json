@@ -4,7 +4,8 @@
   "private": true,
   "scripts": {
     "dev": "next dev --turbopack",
-    "build": "next build",
+    "build": "cross-env NODE_OPTIONS=--max-old-space-size=6144 next build",
+    "build:docker": "cross-env DOCKER=true next build",
     "start": "next start",
     "lint": "next lint"
   },
@@ -38,7 +39,6 @@
     "react": "19.1.0",
     "react-dom": "19.1.0",
     "react-icons": "^5.5.0",
-    "react-query": "^3.39.3",
     "superjson": "^2.2.2",
     "tailwind-merge": "^3.3.1",
     "url-join": "^5.0.0",
@@ -57,6 +57,7 @@
     "@types/react": "^19",
     "@types/react-dom": "^19",
     "@types/uuid": "^10.0.0",
+    "cross-env": "^10.0.0",
     "eslint": "^9",
     "eslint-config-next": "15.4.4",
     "fake-indexeddb": "^6.0.1",

@@ -5,9 +5,13 @@ import debug from 'debug';
 
 import { retry } from '@/server/utils/proc';
 import { getUploadFilePath } from '@/libs/upload-utils'
-import { saveComposedFile, getComposedFileUrl } from './_utils';
+import {
+  saveComposedFile,
+  getComposedFileUrl,
+  pw_ensureLoggedIn,
+} from './_utils';
 
-import { gensparkEnv } from '@/config/genspark';
+
 import { ITryonProgess, ITryonCompositedFile } from '@/types/tryon';
 
 const log = debug('tryon:generate-image');
@@ -15,61 +19,26 @@ const log = debug('tryon:generate-image');
 const photoUploadUrl = 'https://www.genspark.ai/fashion/my_photo';
 const clothingUploadUrl = 'https://www.genspark.ai/fashion/uploadCustom?from=image_studio';
 
-async function check_user(page: Page): Promise<boolean> {
-  const url = 'https://www.genspark.ai/api/user'
-  const resp = await page.goto(url)
-  const body = await resp?.json()
-
-  if (body.status != 0) {
-    log("未登录，需要重新登录")
-    return false
-  }
-  return true
-}
-
-async function ensureLoggedIn(page: Page) {
-  // 必然没登录，先不校验
-  // if (await check_user(page)) {
-  //     return
-  // }
-
-  try {
-    log('未登录，开始登录...');
-    await page.goto('https://www.genspark.ai/api/login?redirect_url=%2F');
-
-    await page.click("#loginWithEmailWrapper")
-    await page.locator('#email').fill(gensparkEnv.EMAIL);
-    await page.locator('input[type="password"]').fill(gensparkEnv.PASSWORD);
-    await page.click('button[type="submit"]')
-
-    // await page.waitForTimeout(3000);
-    await page.waitForURL("https://www.genspark.ai/**", { waitUntil: 'commit' })
-    log('登录成功，重新加载页面');
-  } catch (e) {
-    log('登录失败 ', e);
-  }
-}
-
 // import { createParser, EventSourceMessage } from 'eventsource-parser';
 
-async function fetchTryonTask(page: Page, clothingPath: string) {
-  const url = "https://www.genspark.ai/api/spark/tryon_running_tasks?task_source=FASHION_TRYON"
-  const resp = await page.goto(url)
-  const body = await resp?.json()
-  // const content = await page.locator("pre").textContent()
-  // const data = JSON.parse(content!).data
-  const data = body.data
-  const task = body.data.running_tasks.find((task: any) => {
-    if (task.additional_info.model_image_url === clothingPath) {
-      return true
-    }
-  })
-  if (!task.id) {
-    log("未找到对应的任务，当前任务为:", data.running_tasks)
-    return null
-  }
-  return task.id
-}
+// async function fetchTryonTask(page: Page, clothingPath: string) {
+//   const url = "https://www.genspark.ai/api/spark/tryon_running_tasks?task_source=FASHION_TRYON"
+//   const resp = await page.goto(url, { waitUntil: 'domcontentloaded' })
+//   const body = await resp?.json()
+//   // const content = await page.locator("pre").textContent()
+//   // const data = JSON.parse(content!).data
+//   const data = body.data
+//   const task = body.data.running_tasks.find((task: any) => {
+//     if (task.additional_info.model_image_url === clothingPath) {
+//       return true
+//     }
+//   })
+//   if (!task.id) {
+//     log("未找到对应的任务，当前任务为:", data.running_tasks)
+//     return null
+//   }
+//   return task.id
+// }
 
 async function fetchTryOnResult(page: Page, clothingPath: string) {
   // // 先获取任务 id
@@ -77,11 +46,11 @@ async function fetchTryOnResult(page: Page, clothingPath: string) {
   // log("获取到任务:", taskId)
 
   const url = 'https://www.genspark.ai/fashion/stylist'
-  await page.goto(url)
+  await page.goto(url, { waitUntil: 'domcontentloaded' })
 
   // TODO 从 remixing-progress获取进度信息
   // TODO 可能有多个image-generated
-  const imgEl = await page.waitForSelector("div.image-generated > .image-grid > img", { timeout: 30 * 60 * 1000 })
+  const imgEl = await page.waitForSelector("div.image-generated > .image-grid > img", { timeout: 10 * 60 * 1000 })
   const src = await imgEl.getAttribute('src')
   if (src) {
     log('获取到图片:', src)
@@ -124,7 +93,7 @@ async function uploadPhoto(page: Page, photoId: string): Promise<string | null> 
         log('模特照片上传成功:', new_src);
         return new_src
       }
-      throw new Error("照片上传失败, new_src=", new_src)
+      throw new Error("照片上传失败, new_src=" + new_src)
     } catch (e) {
       log('未弹出文件选择，刷新重试...', e);
       // await page.waitForTimeout(5000);
@@ -151,7 +120,7 @@ async function uploadPhoto(page: Page, photoId: string): Promise<string | null> 
 
 async function uploadClothing(page: Page, clothFileId: string) {
   log("开始上传服装")
-  await page.goto(clothingUploadUrl);
+  await page.goto(clothingUploadUrl, {waitUntil: "domcontentloaded"});
 
   const clothingPath = await getUploadFilePath(clothFileId)
   if (!clothingPath) {
@@ -162,7 +131,7 @@ async function uploadClothing(page: Page, clothFileId: string) {
     try {
       const [fileChooser] = await Promise.all([
         page.waitForEvent('filechooser', { timeout: 5000 }),
-        page.locator(".relative>div.cursor-pointer", { hasText: "点击上传图片" }).click(),
+        page.click("css=.relative>div.cursor-pointer", {timeout:5000})
       ]);
       log("衣服正在上传")
       await fileChooser.setFiles(clothingPath);
@@ -185,8 +154,8 @@ async function uploadClothing(page: Page, clothFileId: string) {
       // }
 
       // 点击按钮并等待跳转
-      await page.click('.try-on-button'),
-        await page.waitForURL("https://www.genspark.ai/fashion/stylist", { waitUntil: 'commit' })
+      await page.click('.try-on-button')
+      await page.waitForURL("https://www.genspark.ai/fashion/stylist", { waitUntil: 'commit' })
       log('试穿跳转成功');
       return cloth_src
     } catch (err) {
@@ -225,8 +194,16 @@ export async function* compositeImage(params: {
   modelFileId: string;
   clothFileId: string;
 }): AsyncGenerator<ITryonProgess<ITryonCompositedFile>> {
-  const browser = await chromium.launch({ headless: false }); // 设置 headless 为 false 可以看到浏览器界面
-  const context = await browser.newContext();
+  const browser = await chromium.launch({
+    headless: true,
+    args: [
+      '--disable-blink-features=AutomationControlled', // 尝试规避自动化检测
+    ]
+   });
+  const context = await browser.newContext({
+    viewport: { width: 1920, height: 1080 },
+    userAgent: 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/138.0.0.0 Safari/537.36'
+  });
 
   let stage: ITryonProgess<string>['stage'] = 'initial';
 
@@ -239,7 +216,7 @@ export async function* compositeImage(params: {
       message: '正在准备模型...'
     }
 
-    await ensureLoggedIn(page)
+    await pw_ensureLoggedIn(page)
 
     yield {
       stage: (stage = 'model_composing'),
@@ -324,7 +301,7 @@ export async function* compositeImage(params: {
 // }
 
 // async function main() {
-//   for await (const progress of composeImage({
+//   for await (const progress of compositeImage({
 //     modelFileId: '335200fe-554c-4294-a6de-842b2aeaddb0.jpg',
 //     clothFileId:'4df53e08-cb46-40b1-9a5e-92b32ed4dd4c.webp'})
 //   ) {

@@ -17,8 +17,8 @@ export const getServerDB = async (): Promise<TryonDatabase> => {
   try {
     // 根据环境选择合适的数据库实例
     // cachedDB = isDesktop ? await getPgliteInstance() : getDBInstance();
-    // return cachedDB;
-    return getDBInstance();
+    cachedDB = getDBInstance();
+    return cachedDB;
   } catch (error) {
     console.error('❌ Failed to initialize database:', error);
     throw error;
