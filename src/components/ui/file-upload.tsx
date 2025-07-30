@@ -94,7 +94,7 @@ export function FileUpload({
 
       // 上传成功回调
       onUploadComplete?.(result);
-      
+
       // 清除选中的文件和预览
       setSelectedFile(null);
       setPreviewUrl(null);
@@ -131,7 +131,7 @@ export function FileUpload({
         accept={acceptedFileTypes}
         className="hidden"
       />
-      
+
       {!selectedFile ? (
         // 文件选择按钮
         <Button
@@ -150,15 +150,16 @@ export function FileUpload({
                 {/* 文件预览 */}
                 <div className="relative h-20 w-20 overflow-hidden rounded-md border">
                   {previewUrl && (
-                    <Image 
+                    <Image
                       src={previewUrl}
                       alt="File preview"
                       fill
                       style={{ objectFit: 'contain' }}
+                      unoptimized
                     />
                   )}
                 </div>
-                
+
                 {/* 文件信息 */}
                 <div className="flex-1 space-y-1 text-sm">
                   <p className="font-medium truncate">{selectedFile.name}</p>
@@ -172,7 +173,7 @@ export function FileUpload({
               </div>
             </CardContent>
           </Card>
-          
+
           {/* 操作按钮 */}
           <div className="flex space-x-2">
             <Button

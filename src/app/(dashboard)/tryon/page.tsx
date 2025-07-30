@@ -195,6 +195,7 @@ export default function ImageGenApp() {
                       width={150}
                       height={150}
                       className="object-cover"
+                      unoptimized
                     />
                   ) : (
                     <div className="w-[150px] h-[150px] bg-muted" />
@@ -240,6 +241,7 @@ export default function ImageGenApp() {
                   width={200}
                   height={150}
                   className="mb-4 object-cover"
+                  unoptimized
                 />
               )}
               {!isGenerating && <div className="relative mb-4 object-cover h-[300px]">
@@ -296,6 +298,7 @@ export default function ImageGenApp() {
                       width={200}
                       height={150}
                       className="mb-4 blur-sm"
+                      unoptimized
                     />
                   )}
                 </div>
