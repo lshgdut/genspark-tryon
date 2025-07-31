@@ -100,13 +100,13 @@ export default function ImageGenApp() {
       log("发送重新生成请求，模特ID:", actualModelId, "服装ID:", actualClothId)
 
       // 创建合成图片任务
-      const jobId = await tryonService.composeImage({
+      const {id: jobId} = await tryonService.composeImage({
         modelFileId: actualModelId,
         clothFileId: actualClothId
       })
 
       // 轮询任务状态
-      const compositeImageFile = await tryonService.pollTaskStatus<ITryonCompositedFile>(jobId, {
+      const compositeImageFile = await tryonService.pollTaskStatus(jobId, {
         timeout: 60 * 60 * 1000, // 1小时超时
         // onProgress: (status) => {
         //   // console.log(`合成图片任务状态: ${status}`)
@@ -139,12 +139,12 @@ export default function ImageGenApp() {
       log("发送生成视频请求，合成图片URL:", compositeImage)
 
       // 创建生成视频任务
-      const jobId = await tryonService.composeVideo({
+      const {id: jobId} = await tryonService.composeVideo({
         fileId: compositeImage.fileId
       })
 
       // 轮询任务状态
-      const result = await tryonService.pollTaskStatus<ITryonCompositedFile>(jobId, {
+      const result = await tryonService.pollTaskStatus(jobId, {
         // 视频生成可能需要更长时间
         timeout: 2 * 60 * 60 * 1000, // 2小时超时
         // onProgress: (status) => {
@@ -247,10 +247,7 @@ export default function ImageGenApp() {
                 <Button variant="default" onClick={() => handleRegenerate()} disabled={isGenerating}>
                   {isGenerating ? "正在生成..." : "重新生成换装"}
                 </Button>
-                {/* <Button variant="destructive" onClick={() => setStep("step1")} disabled={isGenerating}>
-                  上一步
-                </Button> */}
-                <Button variant="destructive" onClick={() => {setStep("step3")}} disabled={!compositeImage || isGenerating || isVideoGenerating}>
+                <Button variant="destructive" onClick={() => {setStep("step3")}} disabled={!compositeImage || isGenerating}>
                   下一步
                 </Button>
               </div>

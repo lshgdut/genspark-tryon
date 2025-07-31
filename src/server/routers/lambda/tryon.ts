@@ -26,7 +26,7 @@ export const tryonRouter = router({
         log(`开始合成图片任务，模型文件ID: ${modelFileId}, 服装文件ID: ${clothFileId}`);
 
         // 创建异步任务
-        const jobId = createJob(async () => {
+        const job = createJob(async () => {
           // 模拟AI处理过程
           // await new Promise((resolve) => setTimeout(resolve, 3000));
 
@@ -49,7 +49,7 @@ export const tryonRouter = router({
           return imageFile;
         });
 
-        return { jobId };
+        return { ...job };
       } catch (error) {
         log('创建图片合成任务失败: %O', error);
         if (error instanceof TRPCError) throw error;
@@ -75,7 +75,7 @@ export const tryonRouter = router({
         log(`开始生成视频任务，合成图片URL: ${fileId}`);
 
         // 创建异步任务
-        const jobId = createJob(async () => {
+        const job = createJob(async () => {
           let videoFile
           for await (const progress of compositeVideo({ fileId })) {
             log(`合成视频进度: ${progress.progress}%, 状态: ${progress.status}`);
@@ -98,7 +98,7 @@ export const tryonRouter = router({
           return videoFile;
         });
 
-        return { jobId };
+        return { ...job };
       } catch (error) {
         log('创建视频生成任务失败: %O', error);
         if (error instanceof TRPCError) throw error;

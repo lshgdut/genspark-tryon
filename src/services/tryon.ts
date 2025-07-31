@@ -1,31 +1,28 @@
 import { lambdaClient } from '@/libs/trpc/client';
+import type { Job } from '@/libs/trpc/task-manager';
+import type { ITryonCompositedFile } from '@/types/tryon';
 
-type JobId = string;
 type TaskStatus = 'pending' | 'running' | 'completed' | 'failed';
 
-interface TaskResult {
-  status: TaskStatus;
-  result?: any;
-  error?: string;
-}
+type CompositeJob = Job<ITryonCompositedFile>;
 
 export interface ITryonService {
   composeImage(params: {
     modelFileId: string;
     clothFileId: string;
-  }): Promise<JobId>;
+  }): Promise<CompositeJob>;
 
   composeVideo(params: {
     fileId: string;
-  }): Promise<JobId>;
+  }): Promise<CompositeJob>;
 
-  getTaskStatus(jobId: string): Promise<TaskResult>;
+  getTaskStatus(jobId: string): Promise<CompositeJob>;
 
-  pollTaskStatus<T>(jobId: string, options?: {
+  pollTaskStatus(jobId: string, options?: {
     interval?: number;
     timeout?: number;
     onProgress?: (status: TaskStatus) => void;
-  }): Promise<T>;
+  }): Promise<ITryonCompositedFile>;
 
   // subscribeTaskStatus(jobId: string): Promise<TaskResult>;
 }
@@ -33,17 +30,17 @@ export interface ITryonService {
 export class TryonService implements ITryonService {
   composeImage: ITryonService['composeImage'] = async (params) => {
     const result = await lambdaClient.tryon.composeImage.mutate(params);
-    return result.jobId;
+    return result;
   };
 
   composeVideo: ITryonService['composeVideo'] = async (params) => {
     const result = await lambdaClient.tryon.composeVideo.mutate(params);
-    return result.jobId;
+    return result;
   };
 
   getTaskStatus: ITryonService['getTaskStatus'] = async (jobId) => {
     const result = await lambdaClient.tryon.getTaskStatus.query({ jobId });
-    return result;
+    return result as CompositeJob;
   };
 
   pollTaskStatus: ITryonService['pollTaskStatus'] = async (jobId, options = {}) => {
@@ -73,7 +70,7 @@ export class TryonService implements ITryonService {
 
           // 检查任务是否完成
           if (taskResult.status === 'completed') {
-            return resolve(taskResult.result);
+            return resolve(taskResult.result as ITryonCompositedFile);
           }
 
           // 检查任务是否失败
