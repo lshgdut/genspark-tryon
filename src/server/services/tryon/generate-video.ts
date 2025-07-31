@@ -193,7 +193,9 @@ export async function* compositeVideo({fileId}: {fileId: string}): AsyncGenerato
     await pw_ensureLoggedIn(page)
 
     log("打开页面:", videoPageUrl)
-    await page.goto(videoPageUrl, { waitUntil: "domcontentloaded" })
+    await page.goto(videoPageUrl, { waitUntil: "load" })
+    // 等 3s 页面稳定
+    await page.waitForTimeout(3000)
     // TODO TimeoutError: goto: Timeout 30000ms exceeded.
 
     yield {

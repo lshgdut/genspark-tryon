@@ -46,7 +46,7 @@ async function fetchTryOnResult(page: Page, clothingPath: string) {
   // log("获取到任务:", taskId)
 
   const url = 'https://www.genspark.ai/fashion/stylist'
-  await page.goto(url, { waitUntil: 'domcontentloaded' })
+  await page.goto(url, { waitUntil: 'load' })
 
   // TODO 从 remixing-progress获取进度信息
   // TODO 可能有多个image-generated
@@ -61,7 +61,7 @@ async function fetchTryOnResult(page: Page, clothingPath: string) {
 
 async function uploadPhoto(page: Page, photoId: string): Promise<string | null> {
   log("打开模特照片上传页面")
-  await page.goto(photoUploadUrl, {waitUntil: 'domcontentloaded'});
+  await page.goto(photoUploadUrl, {waitUntil: 'load'});
 
   const photoPath = await getUploadFilePath(photoId)
   if (!photoPath) {
@@ -71,6 +71,7 @@ async function uploadPhoto(page: Page, photoId: string): Promise<string | null> 
   log("开始上传模特照片")
   return await retry(async () => {
     try {
+      log("选择模特照片 %s", photoId)
       const previousSrc = await page.locator("img.preview-image").getAttribute('src')
 
       const [fileChooser] = await Promise.all([
@@ -120,7 +121,7 @@ async function uploadPhoto(page: Page, photoId: string): Promise<string | null> 
 
 async function uploadClothing(page: Page, clothFileId: string) {
   log("开始上传服装")
-  await page.goto(clothingUploadUrl, {waitUntil: "domcontentloaded"});
+  await page.goto(clothingUploadUrl, {waitUntil: "load"});
 
   const clothingPath = await getUploadFilePath(clothFileId)
   if (!clothingPath) {
@@ -155,7 +156,8 @@ async function uploadClothing(page: Page, clothFileId: string) {
 
       // 点击按钮并等待跳转
       await page.click('.try-on-button')
-      await page.waitForURL("https://www.genspark.ai/fashion/stylist", { waitUntil: 'commit' })
+      // await page.waitForURL("https://www.genspark.ai/fashion/stylist", { waitUntil: 'commit' })
+      await page.waitForLoadState();
       log('试穿跳转成功');
       return cloth_src
     } catch (err) {

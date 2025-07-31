@@ -300,7 +300,7 @@ export default function ImageGenApp() {
             <div className="flex flex-col items-center justify-center">
               <div className="flex justify-center gap-4 flex-wrap">
                 <Button variant="destructive" onClick={handleGenerateVideo} disabled={!compositeImage || isVideoGenerating}>
-                  {isVideoGenerating ? "正在生成..." : "重新生成视频"}
+                  {isVideoGenerating ? "正在生成..." : (compositeVideo ? "重新生成视频": "生成视频")}
                 </Button>
                 {!isVideoGenerating && compositeVideo && (
                   <Button variant="secondary" asChild>
