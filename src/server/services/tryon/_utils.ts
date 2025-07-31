@@ -2,14 +2,20 @@ import { join } from 'path';
 import { cwd } from 'process';
 import debug from 'debug';
 
+import * as node_fs from 'node:fs';
+import * as https from 'https';
+
 import type {Page} from 'playwright'
 
+import { v4 as uuidv4 } from 'uuid';
 import { existsSync } from 'fs';
 import fs from 'fs/promises';
 import { appEnv } from '@/envs/app';
 import { gensparkEnv } from '@/config/genspark';
 
 const log = debug('tryon:upload-utils');
+
+export const USER_AGENT = 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/138.0.0.0 Safari/537.36'
 
 /**
  * 获取上传目录路径
@@ -97,4 +103,42 @@ export async function pw_ensureLoggedIn(page: Page) {
     log('登录失败 ', e);
     throw e
   }
+}
+
+export function pw_downloadFileStream(url: string): Promise<string> {
+
+  const fileName = `${uuidv4()}.mp4`;
+  const outputPath = getComposedFilePath(fileName);
+
+  return new Promise((resolve, reject) => {
+    const file = node_fs.createWriteStream(outputPath);
+
+    https.get(url, {
+      headers: {
+        "user-agent": USER_AGENT
+      }
+    }, (response) => {
+      if (response.statusCode !== 200) {
+        reject(new Error(`Failed with status ${response.statusCode}`));
+        return;
+      }
+      // log(response.headers['content-length'], response.headers['content-type'])
+      // const contentType = response.headers['content-type'];
+      // if (!contentType || !contentType.startsWith('video/')) {
+      //   reject(new Error(`Invalid content type: ${contentType}`));
+      //   return;
+      // }
+
+      response.pipe(file);
+
+      file.on('finish', () => {
+        file.close();
+        // log('✅ 文件已保存:', outputPath);
+        resolve(outputPath);
+      });
+    }).on('error', (err) => {
+      node_fs.unlinkSync(outputPath);
+      reject(err);
+    });
+  });
 }

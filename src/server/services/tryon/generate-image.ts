@@ -9,6 +9,7 @@ import {
   saveComposedFile,
   getComposedFileUrl,
   pw_ensureLoggedIn,
+  USER_AGENT,
 } from './_utils';
 
 
@@ -50,8 +51,11 @@ async function fetchTryOnResult(page: Page, clothingPath: string) {
 
   // TODO 从 remixing-progress获取进度信息
   // TODO 可能有多个image-generated
-  const imgEl = await page.waitForSelector("div.image-generated > .image-grid > img", { timeout: 10 * 60 * 1000 })
-  const src = await imgEl.getAttribute('src')
+  const src = await retry(async () => {
+    const imgEl = await page.waitForSelector("div.image-generated > .image-grid > img", { timeout: 60 * 1000 })
+    return await imgEl.getAttribute('src')
+  }, { maxRetries: 5, backoff: 3000 })
+
   if (src) {
     log('获取到图片:', src)
     return src
@@ -156,8 +160,10 @@ async function uploadClothing(page: Page, clothFileId: string) {
 
       // 点击按钮并等待跳转
       await page.click('.try-on-button')
-      // await page.waitForURL("https://www.genspark.ai/fashion/stylist", { waitUntil: 'commit' })
-      await page.waitForLoadState();
+      // 等一会让点击事件响应
+      await page.waitForTimeout(3000);
+      await page.waitForURL("https://www.genspark.ai/fashion/stylist", { waitUntil: "domcontentloaded" })
+      // await page.waitForLoadState();
       log('试穿跳转成功');
       return cloth_src
     } catch (err) {
@@ -171,7 +177,7 @@ async function uploadClothing(page: Page, clothFileId: string) {
 async function saveResultImage(page: Page, imageUrl: string): Promise<ITryonCompositedFile> {
   const imageResp = await page.evaluate(async (url: string) => {
     const res = await fetch(url);
-    console.log(res.headers.get("content-type"))
+    // console.log(res.headers.get("content-type"))
     const buf = await res.arrayBuffer();
     return Array.from(new Uint8Array(buf));
   }, imageUrl);
@@ -204,7 +210,7 @@ export async function* compositeImage(params: {
    });
   const context = await browser.newContext({
     viewport: { width: 1920, height: 1080 },
-    userAgent: 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/138.0.0.0 Safari/537.36'
+    userAgent: USER_AGENT
   });
 
   let stage: ITryonProgess<string>['stage'] = 'initial';

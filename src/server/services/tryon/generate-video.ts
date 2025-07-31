@@ -1,15 +1,16 @@
 import { chromium } from 'playwright';
 import { type Page, type Locator } from 'playwright';
 
-import { v4 as uuidv4 } from 'uuid';
+import { basename } from 'node:path';
 import debug from 'debug';
 
 import { ITryonProgess, ITryonCompositedFile } from '@/types/tryon';
 import {
-  saveComposedFile,
+  USER_AGENT,
   getComposedFileUrl,
   getComposedFilePath,
   pw_ensureLoggedIn,
+  pw_downloadFileStream,
 } from './_utils';
 
 
@@ -34,7 +35,7 @@ async function chooseModel(page: Page) {
 }
 
 async function chooseRatio(page: Page) {
-  const ratio = '16:9'
+  const ratio = '9:16'
   // const ratio = '1:1'
 
   log("选择比例: ", ratio)
@@ -143,17 +144,24 @@ async function postVideoCreated(page: Page, onProgress?: (progress: number) => v
 }
 
 async function saveVideoGenerated(page: Page, videoUrl: string) {
-  const videoResp = await page.evaluate(async (url: string) => {
-    const res = await fetch(url);
-    const buf = await res.arrayBuffer();
-    return Array.from(new Uint8Array(buf));
-  }, videoUrl);
+  // const videoResp = await page.evaluate(async (url: string) => {
+  //   const res = await fetch(url);
+  //   const buf = await res.arrayBuffer();
+  //   return Array.from(new Uint8Array(buf));
+  // }, videoUrl);
+
+  // const [download, _] = await Promise.all([
+  //   page.waitForEvent('download'),
+  //   page.click('css=.download-icon-container')
+  // ]);
+  // const fileName = `${uuidv4()}.mp4`;
+  // await download.saveAs(`./${fileName}`);
 
   // 生成结果文件名
   // TODO 可能不是 png 文件
-  const fileName = `${uuidv4()}.mp4`;
-  const realPath = await saveComposedFile(fileName, Buffer.from(videoResp))
-  log('结果视频保存成功:', realPath);
+  const filePath = await pw_downloadFileStream(videoUrl)
+  const fileName = basename(filePath)
+  log('结果视频保存成功:', filePath);
 
   const fileUrl = await getComposedFileUrl(fileName)
   return {
@@ -162,7 +170,6 @@ async function saveVideoGenerated(page: Page, videoUrl: string) {
     fileUrl: fileUrl,
   }
 }
-
 
 // https://www.genspark.ai/fashion/target?id=60f3dd9fe107ad62fde489b7a525bed6&pr=1&from=tryon
 export async function* compositeVideo({fileId}: {fileId: string}): AsyncGenerator<ITryonProgess<ITryonCompositedFile>> {
@@ -175,7 +182,7 @@ export async function* compositeVideo({fileId}: {fileId: string}): AsyncGenerato
 
   const context = await browser.newContext({
     viewport: { width: 1920, height: 1080 },
-    userAgent: 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/138.0.0.0 Safari/537.36'
+    userAgent: USER_AGENT,
   });
 
   const page = await context.newPage();
