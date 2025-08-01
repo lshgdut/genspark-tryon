@@ -22,7 +22,7 @@ services:
     restart: always
 
   lobe:
-    image: genspark:v1
+    image: lshgdut/genspark-tryon:latest
     container_name: tryon
     network_mode: 'service:network-service'
     environment:
