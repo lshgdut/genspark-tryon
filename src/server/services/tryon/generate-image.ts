@@ -81,7 +81,7 @@ async function uploadPhoto(page: Page, photoId: string): Promise<string | null> 
       // const previousSrc = await page.locator("img.preview-image").getAttribute('src')
 
       const [fileChooser] = await Promise.all([
-        page.waitForEvent('filechooser'),
+        page.waitForEvent('filechooser', { timeout: 5000 }),
         page.click('css=div.add-new-photo'),
       ]);
 
@@ -150,7 +150,7 @@ async function uploadClothing(page: Page, clothFileId: string) {
     has_try = true
     log("开始上传服装")
     const [fileChooser] = await Promise.all([
-      page.waitForEvent('filechooser'),
+      page.waitForEvent('filechooser', { timeout: 5000 }),
       page.click("css=.relative>div.cursor-pointer")
     ]);
 
