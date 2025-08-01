@@ -90,59 +90,45 @@ async function fillPrompt(page: Page) {
   await page.locator("div.input-wrapper textarea[name='query']").fill(prompt)
 }
 
-async function postVideoCreated(page: Page, onProgress?: (progress: number) => void) {
+async function postVideoCreated(page: Page) {
   log("提交生成视频")
   await page.locator(".textarea-wrapper > .icon-group").click()
   await page.waitForTimeout(1000)
+}
 
+async function* waitForVideoProgress(page: Page): AsyncGenerator<string> {
   // await page.waitForSelector("div.generated-videos")
   let progressEl, progress: string = ''
   do {
-    try {
-      progressEl = await page.$("div.generated-videos .generating-progress .progress-text")
-      if (!progressEl) {
-        if (progress) {
-          log("视频生成成功...")
-          break
-        }
-        else {
-          log("准备生成视频...")
-          await page.waitForTimeout(3000)
-          continue
-        }
-      }
-      progress = await progressEl.textContent() || ''
-      try {
-        onProgress?.(parseInt(progress.replace("%", ""), 10) / 100)
-      } catch (error) {
-        log("获取进度失败: %s, %s", error, progress)
-      }
+    progressEl = await page.$("div.generated-videos .generating-progress .progress-text")
+    if (!progressEl) {
       if (progress) {
-        log("生成进度:", progress)
-        if (progress === "100%") {
-          break
-        }
-        await page.waitForTimeout(3000)
+        log("视频生成成功...")
+        break
       }
-    } catch (error) {
-      log("视频生成失败...")
-      // TODO
-      /**
-          TimeoutError: content: Timeout 30000ms exceeded.
-          Call log:
-          - waiting for locator('div.generated-videos .generating-progress .progress-text')
-       */
-      throw error
+      else {
+        log("准备生成视频...")
+        await page.waitForTimeout(3000)
+        continue
+      }
+    }
+    progress = await progressEl.textContent() || ''
+    log("生成进度:", progress)
+    if (progress) {
+      yield progress
+      await page.waitForTimeout(3000)
     }
   } while (true)
+}
 
+async function getGeneratedVideoUrl(page: Page): Promise<string> {
   const videoEl = page.locator("div.generated-videos video.preview-video")
   const src = await videoEl.getAttribute("src")
   if (src) {
     log("获取到视频:", src)
     return src
   }
-  return null
+  throw new Error("视频生成失败");
 }
 
 async function saveVideoGenerated(page: Page, videoUrl: string) {
@@ -239,9 +225,22 @@ export async function* compositeVideo({fileId}: {fileId: string}): AsyncGenerato
       progress: 20,
       message: '正在生成换装视频...'
     }
-    const videoUrl = await postVideoCreated(page)
-    if (videoUrl) {
 
+    await postVideoCreated(page)
+    for await (const progress of waitForVideoProgress(page)){
+      yield {
+        stage: (stage = 'video_generating'),
+        status: 'running',
+        progress: 20 + Math.floor((100 - 20) * ((parseInt(progress.replace("%", ""), 10) / 100))),
+        message: '正在生成换装视频...'
+      }
+      if (progress === '100%') {
+        log("换装视频生成完成")
+        break
+      }
+    }
+    const videoUrl = await getGeneratedVideoUrl(page)
+    if (videoUrl) {
       yield {
         stage: (stage = 'image_saving'),
         status: 'running',
@@ -254,10 +253,10 @@ export async function* compositeVideo({fileId}: {fileId: string}): AsyncGenerato
         stage: (stage = 'done'),
         status: 'completed',
         progress: 100,
-        message: '换装成功！',
+        message: '换装视频生成成功！',
         result: videoFile
       }
-      log("视频生成完成")
+      log("视频生成流程结束")
     }
     else {
       yield {

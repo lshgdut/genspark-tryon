@@ -329,7 +329,7 @@ export async function* compositeImage(params: {
 //   async function* run() {
 //     await sleep(1000);
 //     yield { status: "running" }
-//     throw new Error("error")
+//     // throw new Error("error")
 //     await sleep(1000);
 //     yield { status: "completed"}
 //   }

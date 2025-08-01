@@ -120,7 +120,7 @@ export default function ImageGenApp() {
         timeout: 60 * 60 * 1000, // 1小时超时
         onProgress: (_, task) => {
           // console.log(`合成图片任务状态: ${status}`, task)
-          setCompositedTask(task)
+          setCompositedTask(task.status == 'running' ? task : null)
         }
       })
 
@@ -160,8 +160,8 @@ export default function ImageGenApp() {
         // 视频生成可能需要更长时间
         timeout: 2 * 60 * 60 * 1000, // 2小时超时
         onProgress: (_, task) => {
-          // console.log(`合成图片任务状态: ${status}`, task)
-          setCompositedTask(task)
+          // console.log(`合成视频任务状态: ${status}`, task)
+          setCompositedTask(task.status == 'running' ? task : null)
         }
       })
 
@@ -286,17 +286,17 @@ export default function ImageGenApp() {
         <TabsContent value="step3">
           <Card className="border-1 rounded-sm p-6">
             <div className="flex justify-center">
-              {compositeImage && (
+              {compositeImage && !compositeVideo && (
                 <div className="relative inset-0 flex items-center justify-center">
                   <Image
                     src={compositeImage?.fileUrl}
                     alt="composite-bg"
                     width={200}
                     height={150}
-                    className={"mb-4" + (isGenerating ? "blur-xs" : "")}
+                    className={"mb-4 " + (isGenerating ? "blur-xs" : "")}
                     unoptimized
                   />
-                  <Spinner />
+                  {isGenerating && <Spinner />}
                 </div>
               )}
               {!isGenerating && compositeVideo && (
@@ -316,7 +316,7 @@ export default function ImageGenApp() {
                 <Button variant="destructive" onClick={handleGenerateVideo} disabled={!compositeImage || isGenerating}>
                   {isGenerating
                     ? (compositedTask?.message || "正在生成...")
-                    : (compositeVideo ? "重新生成视频": "生成视频")
+                    : (videoError || compositeVideo ? "重新生成视频": "生成视频")
                   }
                 </Button>
                 {!isGenerating && compositeVideo && (
