@@ -19,7 +19,7 @@ export class JobService implements IJobService {
   start: IJobService['start'] = async () => {
     const item = await lambdaClient.job.start.mutate({ inputData: '123' });
 
-    return { id: item.jobId };
+    return { id: item.id };
   };
 
   getJob: IJobService['getJob'] = async (id) => {
