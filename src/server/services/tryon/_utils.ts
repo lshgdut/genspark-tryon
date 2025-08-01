@@ -92,8 +92,8 @@ export async function pw_ensureLoggedIn(page: Page) {
     await page.goto('https://www.genspark.ai/api/login?redirect_url=%2F', { waitUntil: 'domcontentloaded' });
 
     await page.click("#loginWithEmailWrapper")
-    await page.locator('#email').fill(gensparkEnv.EMAIL);
-    await page.locator('input[type="password"]').fill(gensparkEnv.PASSWORD);
+    await page.locator('#email').fill(gensparkEnv.email);
+    await page.locator('input[type="password"]').fill(gensparkEnv.password);
     await page.click('button[type="submit"]')
 
     // await page.waitForTimeout(3000);

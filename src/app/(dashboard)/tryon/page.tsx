@@ -12,7 +12,7 @@ import { Alert, AlertTitle, AlertDescription } from "@/components/ui/alert"
 
 import { fileService } from "@/services/file"
 import { tryonService } from "@/services/tryon"
-import { ITryonCompositedFile } from '@/types/tryon';
+import { ITryonCompositedFile, CompositeJob } from '@/types/tryon';
 import debug from 'debug';
 
 const log = debug('tryon:tryon-page');
@@ -36,14 +36,23 @@ export default function ImageGenApp() {
   const [clothFileId, setClothFileId] = useState<string | null>(null)
   const [compositeImage, setCompositeImage] = useState<ITryonCompositedFile | null>(null)
   const [compositeVideo, setCompositeVideo] = useState<ITryonCompositedFile | null>(null)
-  const [isGenerating, setIsGenerating] = useState(false)
-  const [isVideoGenerating, setIsVideoGenerating] = useState(false)
+  const [compositedTask, setCompositedTask] = useState<CompositeJob|null>(null)
+  const isGenerating = compositedTask?.status === 'running' || compositedTask?.status === 'pending'
   const [uploadError, setUploadError] = useState<string | null>(null)
   const [regenerateError, setRegenerateError] = useState<string | null>(null)
   const [videoError, setVideoError] = useState<string | null>(null)
 
+  // useEffect(()=>{
+  //   setStep('step3')
+  //   // setClothFileId("1a0e2c83-d774-4ee3-aa81-81bc024c0a53.webp")
+  //   // setModelFileId("00d0f25c-cda2-4e91-a48f-2ef74ddae36c.jpg")
+  //   setCompositedTask({id:"xxx", status:'completed',})
+  //   // setCompositeImage({ fileId: "6ae156cd-796b-4f23-9a59-d0ece334b1ea.png", fileUrl:"http://localhost:3000/composited/6ae156cd-796b-4f23-9a59-d0ece334b1ea.png", filePath:"xxx"})
+  //   setCompositeVideo({ fileId: "xxx", fileUrl:'http://localhost:3000/composited/352e4f7a-08e3-4196-8132-fe8278072032.mp4'})
+  // },[])
+
   const handleUpload = async () => {
-    setIsGenerating(true)
+    // setIsGenerating(true)
     setUploadError(null)
 
     try {
@@ -76,8 +85,9 @@ export default function ImageGenApp() {
     } catch (error) {
       log("上传文件或生成图片失败:", error)
       setUploadError(error instanceof Error ? error.message : "上传文件或生成图片过程中发生错误")
-    } finally {
-      setIsGenerating(false)
+    // } finally {
+      // setIsGenerating(false)
+      // setCompositedTask(null)
     }
   }
 
@@ -92,7 +102,7 @@ export default function ImageGenApp() {
       return
     }
 
-    setIsGenerating(true)
+    // setIsGenerating(true)
     setRegenerateError(null)
 
     try {
@@ -108,9 +118,10 @@ export default function ImageGenApp() {
       // 轮询任务状态
       const compositeImageFile = await tryonService.pollTaskStatus(jobId, {
         timeout: 60 * 60 * 1000, // 1小时超时
-        // onProgress: (status) => {
-        //   // console.log(`合成图片任务状态: ${status}`)
-        // }
+        onProgress: (_, task) => {
+          // console.log(`合成图片任务状态: ${status}`, task)
+          setCompositedTask(task)
+        }
       })
 
           // 设置合成图片URL
@@ -119,7 +130,8 @@ export default function ImageGenApp() {
       log("重新生成失败:", error)
       setRegenerateError(error instanceof Error ? error.message : "重新生成图片过程中发生错误")
     } finally {
-      setIsGenerating(false)
+      // setIsGenerating(false)
+      setCompositedTask(null)
     }
   }
 
@@ -130,7 +142,7 @@ export default function ImageGenApp() {
     }
 
     setStep("step3")
-    setIsVideoGenerating(true)
+    // setIsVideoGenerating(true)
     setVideoError(null)
     setCompositeVideo(null)
 
@@ -147,9 +159,10 @@ export default function ImageGenApp() {
       const result = await tryonService.pollTaskStatus(jobId, {
         // 视频生成可能需要更长时间
         timeout: 2 * 60 * 60 * 1000, // 2小时超时
-        // onProgress: (status) => {
-        //   // log(`生成视频任务状态: ${status}`)
-        // }
+        onProgress: (_, task) => {
+          // console.log(`合成图片任务状态: ${status}`, task)
+          setCompositedTask(task)
+        }
       })
 
       // 设置视频URL
@@ -157,8 +170,8 @@ export default function ImageGenApp() {
     } catch (error) {
       log("生成视频失败:", error)
       setVideoError(error instanceof Error ? error.message : "生成视频过程中发生错误")
-    } finally {
-      setIsVideoGenerating(false)
+    // } finally {
+    //   setIsVideoGenerating(false)
     }
   }
 
@@ -237,19 +250,27 @@ export default function ImageGenApp() {
                   unoptimized
                 />
               )}
-              {isGenerating && <div className="relative mb-4 object-cover h-[300px]">
-                  <Spinner/>
+              {isGenerating && (
+                <div className="w-[400px] h-[300px] flex items-center justify-center bg-muted text-sm text-muted-foreground">
+                  正在生成换装图片...
                 </div>
-              }
+              )}
             </div>
             <div className="flex flex-col items-center justify-center">
               <div className="flex flex-col md:flex-row justify-center gap-4">
                 <Button variant="default" onClick={() => handleRegenerate()} disabled={isGenerating}>
-                  {isGenerating ? "正在生成..." : "重新生成换装"}
+                  {isGenerating
+                    ? (compositedTask?.message || "正在生成..." )
+                    : "重新生成换装"
+                  }
                 </Button>
-                <Button variant="destructive" onClick={() => {setStep("step3")}} disabled={!compositeImage || isGenerating}>
-                  下一步
-                </Button>
+                {
+                  compositeImage && !isGenerating && (
+                    <Button variant="destructive" onClick={() => { setStep("step3") }} disabled={!compositeImage || isGenerating}>
+                      下一步
+                    </Button>
+                  )
+                }
               </div>
 
               {regenerateError && (
@@ -266,40 +287,39 @@ export default function ImageGenApp() {
           <Card className="border-1 rounded-sm p-6">
             <div className="flex justify-center">
               {compositeImage && (
-                <div className="relative">
-                  {isVideoGenerating && !compositeVideo ? (
-                    <div className="w-[400px] h-[300px] flex items-center justify-center bg-muted text-sm text-muted-foreground">
-                      正在生成换装视频...
-                    </div>
-                  ) : compositeVideo ? (
-                    <video
-                      width={200}
-                      height={150}
-                      controls
-                      className="mb-4"
-                    >
-                      <source src={compositeVideo.fileUrl} type="video/mp4" />
-                      Your browser does not support the video tag.
-                    </video>
-                  ) : (
-                    <Image
-                      src={compositeImage?.fileUrl}
-                      alt="composite-bg"
-                      width={200}
-                      height={150}
-                      className="mb-4 blur-sm"
-                      unoptimized
-                    />
-                  )}
+                <div className="relative inset-0 flex items-center justify-center">
+                  <Image
+                    src={compositeImage?.fileUrl}
+                    alt="composite-bg"
+                    width={200}
+                    height={150}
+                    className={"mb-4" + (isGenerating ? "blur-xs" : "")}
+                    unoptimized
+                  />
+                  <Spinner />
                 </div>
+              )}
+              {!isGenerating && compositeVideo && (
+                <video
+                  width={200}
+                  height={150}
+                  controls
+                  className="mb-4"
+                >
+                  <source src={compositeVideo.fileUrl} type="video/mp4" />
+                  Your browser does not support the video tag.
+                </video>
               )}
             </div>
             <div className="flex flex-col items-center justify-center">
               <div className="flex justify-center gap-4 flex-wrap">
-                <Button variant="destructive" onClick={handleGenerateVideo} disabled={!compositeImage || isVideoGenerating}>
-                  {isVideoGenerating ? "正在生成..." : (compositeVideo ? "重新生成视频": "生成视频")}
+                <Button variant="destructive" onClick={handleGenerateVideo} disabled={!compositeImage || isGenerating}>
+                  {isGenerating
+                    ? (compositedTask?.message || "正在生成...")
+                    : (compositeVideo ? "重新生成视频": "生成视频")
+                  }
                 </Button>
-                {!isVideoGenerating && compositeVideo && (
+                {!isGenerating && compositeVideo && (
                   <Button variant="secondary" asChild>
                     <a href={compositeVideo.fileUrl} download>
                       下载视频

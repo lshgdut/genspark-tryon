@@ -1,9 +1,10 @@
-import { chromium } from 'playwright';
-import { type Page } from 'playwright';
+import playwright, { chromium } from 'playwright';
+import type { Page } from 'playwright';
+const PW_TimeoutError = playwright.errors.TimeoutError;
 import { v4 as uuidv4 } from 'uuid';
 import debug from 'debug';
 
-import { retry } from '@/server/utils/proc';
+import { retry, StopRetry } from '@/server/utils/proc';
 import { getUploadFilePath } from '@/libs/upload-utils'
 import {
   saveComposedFile,
@@ -14,6 +15,7 @@ import {
 
 
 import { ITryonProgess, ITryonCompositedFile } from '@/types/tryon';
+import { gensparkEnv } from '@/config/genspark';
 
 const log = debug('tryon:generate-image');
 
@@ -52,7 +54,7 @@ async function fetchTryOnResult(page: Page, clothingPath: string) {
   // TODO 从 remixing-progress获取进度信息
   // TODO 可能有多个image-generated
   const src = await retry(async () => {
-    const imgEl = await page.waitForSelector("div.image-generated > .image-grid > img", { timeout: 60 * 1000 })
+    const imgEl = await page.waitForSelector("div.image-generated > .image-grid > img")
     return await imgEl.getAttribute('src')
   }, { maxRetries: 5, backoff: 3000 })
 
@@ -64,7 +66,7 @@ async function fetchTryOnResult(page: Page, clothingPath: string) {
 }
 
 async function uploadPhoto(page: Page, photoId: string): Promise<string | null> {
-  log("打开模特照片上传页面")
+  log("打开模特照片上传页面: %s", photoUploadUrl)
   await page.goto(photoUploadUrl, {waitUntil: 'load'});
 
   const photoPath = await getUploadFilePath(photoId)
@@ -76,29 +78,33 @@ async function uploadPhoto(page: Page, photoId: string): Promise<string | null> 
   return await retry(async () => {
     try {
       log("选择模特照片 %s", photoId)
-      const previousSrc = await page.locator("img.preview-image").getAttribute('src')
+      // const previousSrc = await page.locator("img.preview-image").getAttribute('src')
 
       const [fileChooser] = await Promise.all([
-        page.waitForEvent('filechooser', { timeout: 5000 }),
+        page.waitForEvent('filechooser'),
         page.click('css=div.add-new-photo'),
       ]);
 
       await fileChooser.setFiles(photoPath);
       log("模特照片上传中")
 
-      const new_src = await retry(async () => {
-        const src = await page.locator("img.preview-image").getAttribute("src")
-        if (src && src !== previousSrc) {
-          return src
-        }
-        throw new Error("上传未完成，等待尝试")
-      }, { maxRetries: 10, backoff: 2000 })
+      const modelPromise = page.waitForResponse(response =>
+        response.url().startsWith("https://gensparkstorageprodwest.blob.core.windows.net") && response.request().method() === 'PUT'
+      );
 
-      if (new_src) {
-        log('模特照片上传成功:', new_src);
-        return new_src
+      const modelResp = await modelPromise
+      if (modelResp.status() != 201) {
+        log("模特照片上传失败, status: %s", modelResp.status())
+        throw Error("模特照片上传失败")
       }
-      throw new Error("照片上传失败, new_src=" + new_src)
+
+      // 等 3s 让模特图片渲染出来
+      await page.waitForTimeout(3000)
+      const modelSrc = await page.locator("img.preview-image").getAttribute("src")
+
+      log('模特照片上传成功:', modelSrc);
+      return modelSrc
+
     } catch (e) {
       log('未弹出文件选择，刷新重试...', e);
       // await page.waitForTimeout(5000);
@@ -124,54 +130,63 @@ async function uploadPhoto(page: Page, photoId: string): Promise<string | null> 
 }
 
 async function uploadClothing(page: Page, clothFileId: string) {
-  log("开始上传服装")
-  await page.goto(clothingUploadUrl, {waitUntil: "load"});
+  log("打开上传服装页面: %s", clothingUploadUrl)
+  await page.goto(clothingUploadUrl, {waitUntil: "load",timeout:3 * 60 * 1000 });
 
   const clothingPath = await getUploadFilePath(clothFileId)
   if (!clothingPath) {
     throw new Error("未找到服装文件: " + clothFileId)
   }
 
-  return await retry(async () => {
-    try {
-      const [fileChooser] = await Promise.all([
-        page.waitForEvent('filechooser', { timeout: 5000 }),
-        page.click("css=.relative>div.cursor-pointer", {timeout:5000})
-      ]);
-      log("衣服正在上传")
-      await fileChooser.setFiles(clothingPath);
+  // let cloth_src
+  let has_try = false
 
-      const imgEl = await page.waitForSelector("img[alt='uploadImageUrl']")
-      const cloth_src = await imgEl.getAttribute('src')
-      log('衣服上传成功:', cloth_src);
+  return await retry(async ()=>{
 
-      // // 检查按钮状态
-      // await page.waitForTimeout(1000); // 等待按钮渲染
-      // const buttonEnabled = await page.evaluate(() => {
-      //     const el = document.querySelector('.try-on-button');
-      //     return el && !el.classList.contains("opacity-50")
-      // });
-
-      // if (!buttonEnabled) {
-      //     log('按钮不是就续，重试...');
-      //     await page.reload();
-      //     continue;
-      // }
-
-      // 点击按钮并等待跳转
-      await page.click('.try-on-button')
-      // 等一会让点击事件响应
-      await page.waitForTimeout(3000);
-      await page.waitForURL("https://www.genspark.ai/fashion/stylist", { waitUntil: "domcontentloaded" })
-      // await page.waitForLoadState();
-      log('试穿跳转成功');
-      return cloth_src
-    } catch (err) {
-      log('上传或跳转失败，刷新重试...', err);
-      await page.reload();
-      throw err
+    if (has_try) {
+      await page.reload({waitUntil: "load"});
     }
-  })
+
+    has_try = true
+    log("开始上传服装")
+    const [fileChooser] = await Promise.all([
+      page.waitForEvent('filechooser'),
+      page.click("css=.relative>div.cursor-pointer")
+    ]);
+
+    log("设置服装文件")
+    await fileChooser.setFiles(clothingPath);
+
+    log("服装正在上传")
+    const imgEl = await page.waitForSelector("img[alt='uploadImageUrl']")
+    const cloth_src = await imgEl.getAttribute('src')
+    log('服装上传成功:', cloth_src);
+
+    // 有概率点击后不会生效，暂时使用等待 3s 来规避
+    await page.waitForTimeout(3000)
+    const tryonPromise = page.waitForResponse(response =>
+      response.url() === 'https://www.genspark.ai/api/try_on' && response.request().method() === 'POST'
+     );
+
+    log("准备提交换装")
+    await page.locator('css=div.try-on-button', { hasNot: page.locator('css=div.opacity-50') }).click()
+
+    log("等待换装请求响应")
+    const tryonResp = await tryonPromise
+    if (tryonResp.status() != 200) {
+      throw StopRetry("请求换装超时，请稍后重试")
+    }
+    const tryonData = await tryonResp.json();
+    if (tryonData.status != 0) {
+      log("换装服务异常, status: %s, message: %s", tryonData.status, tryonData.message)
+      throw StopRetry("请求换装失败: " + tryonData.message)
+    }
+
+    log('换穿提交成功');
+
+    return cloth_src
+  }, { maxRetries: 10, backoff: 1000 })
+
 }
 
 async function saveResultImage(page: Page, imageUrl: string): Promise<ITryonCompositedFile> {
@@ -203,7 +218,7 @@ export async function* compositeImage(params: {
   clothFileId: string;
 }): AsyncGenerator<ITryonProgess<ITryonCompositedFile>> {
   const browser = await chromium.launch({
-    headless: true,
+    headless: gensparkEnv.playwright_headless,
     args: [
       '--disable-blink-features=AutomationControlled', // 尝试规避自动化检测
     ]
@@ -216,6 +231,10 @@ export async function* compositeImage(params: {
   let stage: ITryonProgess<string>['stage'] = 'initial';
 
   const page = await context.newPage();
+  log("timeout >>> %s", gensparkEnv.playwright_page_navigation_timeout)
+  page.setDefaultNavigationTimeout(gensparkEnv.playwright_page_navigation_timeout)
+  page.setDefaultTimeout(1 * 60 * 1000)
+
   try {
     yield {
       stage: stage,
@@ -274,24 +293,27 @@ export async function* compositeImage(params: {
     }
     else {
       yield {
-        stage: (stage = 'done'),
+        stage: (stage = 'error'),
         status: 'failed',
         // progress: 100,
-        message: '换装失败！',
-        error: '无法获取结果图片'
+        message: '换装失败: 无法获取结果图片',
       }
     }
   } catch (error: any) {
+    if (error instanceof PW_TimeoutError) {
+      // 截图并保存
+      // await page.screenshot({
+      //   path: path.resolve(process.cwd(), 'screenshot.png'),
+      //   fullPage: true,
+      // });
+      log("页面打开超时：%s, %s", page.url(), error.message)
+      throw new Error("换装失败: 请求服务器超时")
+    }
     log("composite image error:", error)
-    yield {
-      stage: stage,
-      status: 'failed',
-      progress: 100,
-      message: error.message
-    }
-    if (process.env.NODE_ENV === 'development') {
-      await page.waitForTimeout(60000);
-    }
+    throw error
+    // if (process.env.NODE_ENV === 'development') {
+    //   await page.waitForTimeout(60000);
+    // }
   } finally {
     // log("closing in 5s");
     await page.close()
@@ -301,11 +323,21 @@ export async function* compositeImage(params: {
 }
 
 // import { sleep } from '@/server/utils/proc';
-// async function* run() {
-//   await sleep(1000);
-//   yield { status: "running" }
-//   await sleep(1000);
-//   yield { status: "completed"}
+// async function main() {
+
+
+//   async function* run() {
+//     await sleep(1000);
+//     yield { status: "running" }
+//     throw new Error("error")
+//     await sleep(1000);
+//     yield { status: "completed"}
+//   }
+
+//   for await (const progress of run()) {
+//     console.log(progress);
+//   }
+
 // }
 
 // async function main() {

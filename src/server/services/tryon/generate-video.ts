@@ -1,5 +1,6 @@
-import { chromium } from 'playwright';
-import { type Page, type Locator } from 'playwright';
+import playwright, { chromium } from 'playwright';
+import type { Page } from 'playwright';
+const PW_TimeoutError = playwright.errors.TimeoutError;
 
 import { basename } from 'node:path';
 import debug from 'debug';
@@ -13,13 +14,14 @@ import {
   pw_downloadFileStream,
 } from './_utils';
 
+import { gensparkEnv } from '@/config/genspark';
 
 const log = debug('tryon:generate-video');
 
 const videoPageUrl = 'https://www.genspark.ai/agents?type=moa_generate_video';
 
 async function chooseModel(page: Page) {
-  const model = 'Kling V1.6 Pro'
+  const model = gensparkEnv.video_model || 'Kling V1.6 Pro'
   // const model = 'Kling V2.1 Master'
 
   log("选择模型: ", model)
@@ -30,12 +32,12 @@ async function chooseModel(page: Page) {
   log("点击模型: ", model)
   await page.waitForSelector('.models-list')
   const modelOption = await page.locator('div.models-list > .model', { hasText: model })
-  await modelOption.click()
+  await modelOption.click({force: true})
   await page.waitForTimeout(1000)
 }
 
 async function chooseRatio(page: Page) {
-  const ratio = '9:16'
+  const ratio = gensparkEnv.video_ratio || '9:16'
   // const ratio = '1:1'
 
   log("选择比例: ", ratio)
@@ -46,11 +48,11 @@ async function chooseRatio(page: Page) {
   log("点击比例：", ratio)
   await page.waitForSelector('div.models-list')
   const ratioOption = await page.locator('div.models-list > .model', { hasText: ratio })
-  await ratioOption.click()
+  await ratioOption.click({force: true})
 }
 
 async function chooseDuration(page: Page) {
-  const duration = '3 ~ 5s'
+  const duration = gensparkEnv.video_duration || '5 ~ 10s'
   log("选择时长: %s", duration)
   const selectorEl = await page.locator("div.options-wrapper > .models-selected", { hasText: '~' })
   await selectorEl.click()
@@ -58,7 +60,7 @@ async function chooseDuration(page: Page) {
 
   log("点击时长：%s", duration)
   await page.waitForSelector('div.models-list')
-  await page.locator('div.models-list > .model', { hasText: duration }).click()
+  await page.locator('div.models-list > .model', { hasText: duration }).click({force: true})
 }
 
 async function uploadTryonImage(page: Page, fileId: string) {
@@ -174,7 +176,7 @@ async function saveVideoGenerated(page: Page, videoUrl: string) {
 // https://www.genspark.ai/fashion/target?id=60f3dd9fe107ad62fde489b7a525bed6&pr=1&from=tryon
 export async function* compositeVideo({fileId}: {fileId: string}): AsyncGenerator<ITryonProgess<ITryonCompositedFile>> {
   const browser = await chromium.launch({
-    headless: true,
+    headless: gensparkEnv.playwright_headless,
     args: [
       '--disable-blink-features=AutomationControlled', // 尝试规避自动化检测
     ]
@@ -186,13 +188,15 @@ export async function* compositeVideo({fileId}: {fileId: string}): AsyncGenerato
   });
 
   const page = await context.newPage();
+  page.setDefaultNavigationTimeout(gensparkEnv.playwright_page_navigation_timeout)
+  page.setDefaultTimeout(1 * 60 * 1000)
 
   let stage: ITryonProgess<string>['stage'] = 'initial';
 
   try {
     yield {
       stage: stage,
-      status: 'pendding',
+      status: 'pending',
       progress: 0,
       message: '正在准备模型...'
     }
@@ -257,24 +261,24 @@ export async function* compositeVideo({fileId}: {fileId: string}): AsyncGenerato
     }
     else {
       yield {
-        stage: (stage = 'done'),
+        stage: (stage = 'error'),
         status: 'failed',
         // progress: 100,
-        message: '换装失败！',
-        error: '无法获取生成视频'
+        message: '视频生成失败: 无法获取生成视频',
       }
     }
-  } catch (error:any) {
-    log("composite video error:", error)
-    yield {
-      stage: stage,
-      status: 'failed',
-      progress: 100,
-      message: error.message
+  } catch (error: any) {
+    if (error instanceof PW_TimeoutError) {
+      // 截图并保存
+      // await page.screenshot({
+      //   path: path.resolve(process.cwd(), 'screenshot.png'),
+      //   fullPage: true,
+      // });
+      log("页面打开超时：%s", page.url())
+      throw new Error("换装失败: 请求服务器超时")
     }
-    if (process.env.NODE_ENV === 'development') {
-      await page.waitForTimeout(60000);
-    }
+    log("composite image error:", error)
+    throw error
   } finally {
     // log("closing in 5s");
     await page.close();

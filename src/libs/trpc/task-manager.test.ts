@@ -20,7 +20,7 @@ describe('task-manager', () => {
   it('should track job status correctly', async () => {
     let job = createJob(async () => 'result');
 
-    // 初始状态应该是 pendding
+    // 初始状态应该是 pending
     expect(job?.status).toBe('pending');
 
     // 等待任务完成

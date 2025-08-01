@@ -1,10 +1,11 @@
 import { lambdaClient } from '@/libs/trpc/client';
-import type { Job } from '@/libs/trpc/task-manager';
-import type { ITryonCompositedFile } from '@/types/tryon';
 
-type TaskStatus = 'pending' | 'running' | 'completed' | 'failed';
+import type {
+  ITryonCompositedFile,
+  CompositeJob,
+  TaskStatus,
+} from '@/types/tryon';
 
-type CompositeJob = Job<ITryonCompositedFile>;
 
 export interface ITryonService {
   composeImage(params: {
@@ -21,7 +22,7 @@ export interface ITryonService {
   pollTaskStatus(jobId: string, options?: {
     interval?: number;
     timeout?: number;
-    onProgress?: (status: TaskStatus) => void;
+    onProgress?: (status: TaskStatus, task: CompositeJob) => void;
   }): Promise<ITryonCompositedFile>;
 
   // subscribeTaskStatus(jobId: string): Promise<TaskResult>;
@@ -65,7 +66,7 @@ export class TryonService implements ITryonService {
 
           // 调用进度回调
           if (onProgress) {
-            onProgress(taskResult.status);
+            onProgress(taskResult.status, taskResult);
           }
 
           // 检查任务是否完成
@@ -75,7 +76,7 @@ export class TryonService implements ITryonService {
 
           // 检查任务是否失败
           if (taskResult.status === 'failed') {
-            return reject(new Error(taskResult.error || '任务执行失败'));
+            return reject(new Error(taskResult.message || '任务执行失败'));
           }
 
           // 继续轮询
