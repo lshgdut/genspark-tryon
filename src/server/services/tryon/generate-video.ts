@@ -98,7 +98,7 @@ async function postVideoCreated(page: Page) {
 
 async function* waitForVideoProgress(page: Page): AsyncGenerator<string> {
   // await page.waitForSelector("div.generated-videos")
-  let progressEl, progress: string = ''
+  let progressEl, progress: string = '', retryCount = 0, maxRetries=60
   do {
     progressEl = await page.$("div.generated-videos .generating-progress .progress-text")
     if (!progressEl) {
@@ -109,6 +109,7 @@ async function* waitForVideoProgress(page: Page): AsyncGenerator<string> {
       else {
         log("准备生成视频...")
         await page.waitForTimeout(3000)
+        retryCount++
         continue
       }
     }
@@ -118,7 +119,11 @@ async function* waitForVideoProgress(page: Page): AsyncGenerator<string> {
       yield progress
       await page.waitForTimeout(3000)
     }
-  } while (true)
+  } while (retryCount < maxRetries)
+
+  if (retryCount >= maxRetries) {
+    throw new Error("视频生成超时，请稍后重试")
+  }
 }
 
 async function getGeneratedVideoUrl(page: Page): Promise<string> {

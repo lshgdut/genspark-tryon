@@ -120,7 +120,7 @@ export default function ImageGenApp() {
         timeout: 60 * 60 * 1000, // 1小时超时
         onProgress: (_, task) => {
           // console.log(`合成图片任务状态: ${status}`, task)
-          setCompositedTask(task.status == 'running' ? task : null)
+          setCompositedTask(task.status == 'running' || task.status == 'pending' ? task : null)
         }
       })
 
@@ -161,7 +161,7 @@ export default function ImageGenApp() {
         timeout: 2 * 60 * 60 * 1000, // 2小时超时
         onProgress: (_, task) => {
           // console.log(`合成视频任务状态: ${status}`, task)
-          setCompositedTask(task.status == 'running' ? task : null)
+          setCompositedTask(task.status == 'running' || task.status == 'pending' ? task : null)
         }
       })
 
