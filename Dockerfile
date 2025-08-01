@@ -18,6 +18,10 @@ RUN corepack enable && corepack prepare pnpm@10.10.0 --activate
 FROM base AS builder
 # 可用 tag 查询：https://hub.docker.com/_/microsoft-playwright
 
+# Genspark Account
+ENV GENSPARK_EMAIL="email" \
+    GENSPARK_PASSWORD="pasword"
+
 # Node
 ENV NODE_OPTIONS="--max-old-space-size=4096"
 
