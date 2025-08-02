@@ -63,10 +63,11 @@ async function chooseDuration(page: Page) {
 
 
   const optionEl = page.locator('div.models-list > .model', { hasText: duration, has: page.locator('.plus-icon-paid') })
-  if ((await optionEl.filter({has: page.locator('.plus-icon-paid')}).count()) > 0) {
+  if ((await optionEl.filter({ has: page.locator('.plus-icon-hidden')}).count()) > 0) {
+    await optionEl.click({ force: true })
+  }else{
     throw new Error("账户积分不足，请充值")
   }
-  await optionEl.click({force: true})
 
   // const popupPromise = page.waitForEvent('popup', { timeout: 5000 })
   // const popupUrl = await (await popupPromise).evaluate('location.href')
@@ -284,6 +285,8 @@ export async function* compositeVideo({fileId}: {fileId: string}): AsyncGenerato
       }
     }
   } catch (error: any) {
+    log("composite image error:", error)
+
     if (error instanceof PW_TimeoutError) {
       // 截图并保存
       // await page.screenshot({
@@ -293,7 +296,6 @@ export async function* compositeVideo({fileId}: {fileId: string}): AsyncGenerato
       log("页面打开超时：%s", page.url())
       throw new Error("换装失败: 请求服务器超时")
     }
-    log("composite image error:", error)
     throw error
   } finally {
     // log("closing in 5s");

@@ -300,6 +300,7 @@ export async function* compositeImage(params: {
       }
     }
   } catch (error: any) {
+    log("composite image error:", error)
     if (error instanceof PW_TimeoutError) {
       // 截图并保存
       // await page.screenshot({
@@ -309,7 +310,6 @@ export async function* compositeImage(params: {
       log("页面打开超时：%s, %s", page.url(), error.message)
       throw new Error("换装失败: 请求服务器超时")
     }
-    log("composite image error:", error)
     throw error
     // if (process.env.NODE_ENV === 'development') {
     //   await page.waitForTimeout(60000);
