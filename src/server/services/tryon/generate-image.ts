@@ -224,7 +224,7 @@ export async function* compositeImage(params: {
     ]
    });
   const context = await browser.newContext({
-    viewport: { width: 1920, height: 1080 },
+    viewport: { width: 1440, height: 860 },
     userAgent: USER_AGENT
   });
 

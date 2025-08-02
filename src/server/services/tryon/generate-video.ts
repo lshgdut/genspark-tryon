@@ -60,7 +60,19 @@ async function chooseDuration(page: Page) {
 
   log("点击时长：%s", duration)
   await page.waitForSelector('div.models-list')
-  await page.locator('div.models-list > .model', { hasText: duration }).click({force: true})
+
+
+  const optionEl = page.locator('div.models-list > .model', { hasText: duration, has: page.locator('.plus-icon-paid') })
+  if ((await optionEl.filter({has: page.locator('.plus-icon-paid')}).count()) > 0) {
+    throw new Error("账户积分不足，请充值")
+  }
+  await optionEl.click({force: true})
+
+  // const popupPromise = page.waitForEvent('popup', { timeout: 5000 })
+  // const popupUrl = await (await popupPromise).evaluate('location.href')
+  // if (popupUrl === 'https://www.genspark.ai/pricing') {
+  //   throw new Error("账户积分不足，请充值")
+  // }
 }
 
 async function uploadTryonImage(page: Page, fileId: string) {
@@ -174,7 +186,7 @@ export async function* compositeVideo({fileId}: {fileId: string}): AsyncGenerato
   }); // 设置 headless 为 false 可以看到浏览器界面
 
   const context = await browser.newContext({
-    viewport: { width: 1920, height: 1080 },
+    viewport: { width: 1440, height: 860 },
     userAgent: USER_AGENT,
   });
 
